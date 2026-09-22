@@ -196,6 +196,36 @@ def raw_item(name):
     return scope["webapp.video-detail"]["itemInfo"]["itemStruct"]
 
 
+# The WAF interstitial, captured verbatim on 2026-09-22 from a residential
+# exit that refused a plain HTTP client. 1,462 bytes, HTTP 200.
+#
+# Inline rather than in `fixtures_generated.json` because it is tiny, it
+# is not a payload the generator knows how to trim, and having it in the
+# suite file means the marker check and the page it checks against cannot
+# drift apart.
+#
+# The `cs` value is TikTok's own challenge blob. It is base64 of a JSON
+# object holding two opaque hashes and a unix timestamp — no account, no
+# session, no credential — and it expired the moment it was issued.
+WAF_FIXTURE = (
+    '<!DOCTYPE html> <html lang="en"> <head>'
+    '<script id="slardar-config" type="application/json">'
+    '{ "slardarClient": "SlardarWAF", "bid": "slardar_us_waf", "pid": "js-44" }'
+    '</script></head><body> Please wait... '
+    '<p id="wci" class="_wafchallengeid"></p>'
+    '<p id="cs" class="ZXhwaXJlZC1jaGFsbGVuZ2UtYmxvYg"></p>'
+    '<p id="rci" class="waforiginalreid"></p>'
+    '<script src="https://sf16-website-login.neutral.ttwstatic.com/obj/'
+    'tiktok_web_login_static/obj/waf-aiso/dd9808.js"></script>'
+    '</body></html>'
+)
+
+def _SERVED_PAGES():
+    """(name, html) for every capture this repo knows is good."""
+    return ([(n, page(n)) for n in VIDEOS if n != "missing"]
+            + [(n, embed_page(n)) for n in EMBEDS])
+
+
 class _NullContext:
     """Stands in for a driver's lifetime while the browser is stubbed.
 
@@ -2485,6 +2515,61 @@ def check_no_statement_follows_a_return_in_the_same_block():
                                        stmt.lineno))
     check("no statement follows a return/raise/break/continue", not hits,
           "; ".join(hits[:6]))
+
+
+def check_the_waf_interstitial_is_recognised_and_curable():
+    """The THIRD shape of refusal on this site, and the only curable one.
+
+    Measured 2026-09-22, `GET /@nasa` with a plain HTTP client:
+
+        from this datacentre address (Hetzner, Helsinki)   3 of 3 served
+        from a residential pool, nine exits                2 of 9 served
+
+    The other seven answered HTTP 200 with 1,462 bytes whose visible text
+    is "Please wait..." and whose body carries TikTok's WAF challenge. So
+    a residential proxy is MEASURABLY WORSE than no proxy on this route —
+    22% against 100% — which inverts this family's usual instinct and is
+    why the README says so.
+
+    And a browser CLEARS it: driving Chromium through the very exits that
+    refused a plain HTTP client, 3 of 3 served and 0 still challenged. It
+    is a JavaScript challenge, not a captcha.
+    """
+    page_html = WAF_FIXTURE
+    equal("the interstitial gets its own state",
+          product_parser.detect_page_state(page_html, 200),
+          product_parser.STATE_WAF_CHALLENGE)
+    state = product_parser.STATE_WAF_CHALLENGE
+    check("it counts as blocked, which is what makes --transport auto "
+          "switch to a browser", page_flow.counts_as_blocked(state),
+          "a browser is the measured remedy; the engines reach for one on "
+          "any blocked state")
+    check("it is retried", page_flow.should_retry(state))
+    check("it pays NO solver", not page_flow.should_solve(state),
+          "the page carries no widget and no sitekey — paying would buy a "
+          "request the API cannot fulfil")
+    check("and is never parsed", not page_flow.should_parse(state))
+
+    # It must NOT be confused with the two other HTTP-200 refusals, nor
+    # with a page this parser simply failed to read — that last one would
+    # point a reader at the parser instead of at their exit.
+    check("it is not read as a parse error",
+          product_parser.detect_page_state(page_html, 200)
+          != product_parser.STATE_PARSE_ERROR)
+    check("it is not read as the shop's captcha",
+          product_parser.detect_page_state(page_html, 200)
+          != product_parser.STATE_CHALLENGE)
+
+    # CLAUDE.md §18: count every marker on pages you KNOW are good.
+    for marker in tiktok_payload.WAF_CHALLENGE_MARKERS:
+        for name, served in _SERVED_PAGES():
+            check("%r does not appear on served page %s" % (marker, name),
+                  marker not in served,
+                  "a marker that fires on a good page is worse than none")
+    check("'Please wait' is deliberately NOT a marker",
+          not any("please wait" in m.lower()
+                  for m in tiktok_payload.WAF_CHALLENGE_MARKERS),
+          "ordinary English that a caption or a bio can contain")
 
 
 CHECKS = [v for k, v in sorted(globals().items()) if k.startswith("check_")

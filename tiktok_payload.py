@@ -323,6 +323,59 @@ BOT_CHALLENGE_MARKERS = (
     "captcha_verify_img_slide",
 )
 
+# TikTok's WAF interstitial — the THIRD shape of refusal on this site, and
+# the one that is actually curable.
+#
+# Measured 2026-09-22 on the profile route, `GET /@nasa` with a plain HTTP
+# client:
+#
+#     from this datacentre address (Hetzner, Helsinki)   3 of 3 served
+#     from a residential pool, nine exits                2 of 9 served
+#
+# The other seven answered HTTP 200 with 1,462 bytes whose visible text is
+# "Please wait..." and whose body carries TikTok's WAF challenge —
+# `SlardarWAF`, a `_wafchallengeid` element and a `waf-aiso/*.js` script.
+#
+# Two things follow, and the first inverts this family's usual instinct:
+#
+#   1. A RESIDENTIAL PROXY IS WORSE THAN NO PROXY HERE. 22% against 100%.
+#      CLAUDE.md §24 records a site where the gate was the client rather
+#      than the address; this is a site where a "better" address is the
+#      worse one, presumably because a shared residential pool has been
+#      scraped through before and a clean datacentre IP has not.
+#
+#   2. A BROWSER CLEARS IT. Driving Chromium through the very exits that
+#      refused a plain HTTP client: 3 of 3 served, 0 still challenged. It
+#      is a JavaScript challenge, not a captcha — there is no widget and
+#      nothing for a solver to solve, so `solve` is False in the policy
+#      and the remedy is `--transport browser` or a different exit.
+#
+# That makes `--transport auto`'s fallback load-bearing on this site
+# rather than insurance: the engines already switch to a browser for any
+# state that counts as blocked, so naming this one correctly is what makes
+# the existing machinery do the right thing.
+WAF_CHALLENGE_MARKERS = (
+    "_wafchallengeid",
+    "waforiginalreid",
+    "waf-aiso",
+    "slardar_us_waf",
+)
+
+# NOT carried: "Please wait...". It is ordinary English that a video
+# caption or a bio can contain, and CLAUDE.md §18's rule is that a marker
+# a user's own text can trip will eventually refuse a good page. The four
+# above are a CSS class, an element id, a script path and a WAF product
+# name; none can arrive from user content. Counted 2026-09-22 across 25
+# served captures in this family: 0 occurrences each, against 1 each on
+# the interstitial.
+
+
+def waf_markers_present(html) -> List[str]:
+    """Which WAF markers a page carries, in the order they are listed."""
+    text = decode_page(html)
+    return [m for m in WAF_CHALLENGE_MARKERS if m in text]
+
+
 # The refusal that has no marker at all, and the one this site is really
 # built around.
 #

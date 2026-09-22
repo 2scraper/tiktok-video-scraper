@@ -29,6 +29,32 @@ moment the site actually challenges.
 specific exit country, and no browser infrastructure of your own. Not
 access.
 
+### A residential proxy is worse than no proxy here
+
+This is the opposite of what this family's other repos would lead you to
+expect, so it is stated with the numbers. Measured 2026-09-22,
+`GET /@nasa` with a plain HTTP client:
+
+| exit | served |
+|---|---|
+| this bare datacentre address (Hetzner, Helsinki) | **3 of 3** |
+| a residential pool, nine different exits | **2 of 9** |
+
+The seven that were not served answered HTTP 200 with 1,462 bytes whose
+visible text is `Please wait...` — TikTok's **WAF** interstitial
+(`SlardarWAF`, a `_wafchallengeid` element, a `waf-aiso/*.js` script). It
+is a JavaScript challenge, not a captcha: there is no widget and nothing
+for a solver to solve.
+
+**A browser clears it.** Driving Chromium through the very exits that had
+just refused a plain HTTP client: **3 of 3 served, 0 still challenged.**
+
+So on this site `--transport auto` is load-bearing rather than insurance.
+The run recognises the interstitial as its own state (`waf_challenge`),
+counts it as blocked, and starts a browser — which is the measured
+remedy. If you are running without a proxy from a clean address, you will
+probably never see it.
+
 ---
 
 ## Quick start

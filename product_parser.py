@@ -53,12 +53,14 @@ from urllib.parse import parse_qs, urlsplit
 
 from tiktok_payload import (
     BOT_CHALLENGE_MARKERS,
+    WAF_CHALLENGE_MARKERS,
     PayloadError,
     counts,
     decode_page,
     embed_node,
     is_empty_success,
     rehydration_scope,
+    waf_markers_present,
 )
 
 logger = logging.getLogger("product_parser")
@@ -582,6 +584,12 @@ STATE_CONTENT = "content"
 STATE_VIDEO_UNAVAILABLE = "video_unavailable"
 STATE_EMPTY_SUCCESS = "empty_success"
 STATE_CHALLENGE = "challenge"
+# TikTok's WAF interstitial — HTTP 200, 1,462 bytes, "Please wait...".
+# A JavaScript challenge rather than a captcha: a browser clears it
+# (3 of 3 on the very exits that refused a plain HTTP client), and
+# there is no widget for a solver to solve. Its own state because the
+# REMEDY is its own: switch transport, or take a different exit.
+STATE_WAF_CHALLENGE = "waf_challenge"
 STATE_ERROR = "error"
 STATE_PARSE_ERROR = "parse_error"
 STATE_UNKNOWN = "unknown"
@@ -607,6 +615,12 @@ def detect_page_state(html: Any, status: Optional[int] = None,
         return STATE_ERROR
     if challenge_markers_present(text):
         return STATE_CHALLENGE
+
+    # Checked before any attempt to read a payload, because the WAF page
+    # HAS no payload and would otherwise fall through to `parse_error` —
+    # which points a reader at this parser instead of at their exit.
+    if waf_markers_present(text):
+        return STATE_WAF_CHALLENGE
 
     # The embed application first — it is a different payload and a video
     # page will not have one.
