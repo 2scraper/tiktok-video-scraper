@@ -284,11 +284,15 @@ python3 smoke_test.py       # the offline suite — no network, no browser neede
 python3 -m pytest
 ```
 
-One skip is expected and recorded rather than hidden: the challenge-marker
-set has **not** been scored against a page fetched over `--cdp-endpoint`.
-Every Scraping Browser profile available while this repo was built had
-expired (`401 deny_no_user`). The suite says so out loud instead of
-passing quietly.
+The suite also holds the fixture CLAUDE.md asks every repo in this family
+to hold: the material the 2Captcha Scraping Browser's auto-solve extension
+injects into every page it loads. Measured 2026-09-22 on a real
+`--cdp-endpoint` fetch of a page TikTok served — 16 `chrome-extension://`
+tags, 4 `hunter.js`, and `cf-turnstile` once. That last one is the trap:
+carried as a marker, it reports a blocked run on a perfectly good page
+over a paid connection. This repo does not carry it, and the check splices
+the injection into every served fixture to keep that true rather than
+accidental.
 
 ---
 

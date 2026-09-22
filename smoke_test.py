@@ -226,6 +226,58 @@ def _SERVED_PAGES():
             + [(n, embed_page(n)) for n in EMBEDS])
 
 
+# Everything the 2Captcha Scraping Browser's auto-solve extension injects
+# into a page, captured verbatim on 2026-09-22 from a real
+# `--cdp-endpoint` fetch of a page TikTok SERVED.
+#
+# This is the fixture CLAUDE.md §24 asks every repo in this family to hold,
+# and it was a recorded SKIP here until a live Scraping Browser profile
+# turned up. It is 1,882 bytes of script tags and one custom element; the
+# page they came from was 453 KB of real content.
+#
+# Counted on it: 16 `chrome-extension://` tags, 4 `hunter.js`,
+# `cf-turnstile` once, `data-ts-input` once and `captcha-widgets` twice.
+# Every one of those is a marker some repo in this family has carried at
+# some point, and `cf-turnstile` is the one CLAUDE.md §19 singles out —
+# it fires on GOOD pages over CDP and was measured ABSENT from a real
+# Cloudflare challenge on another site.
+#
+# Also measured, and worth recording because it is the reason
+# tiktok-shop-scraper cannot use this path: the same extension, on TikTok
+# SHOP's challenge page, injected all sixteen hunters and did not touch
+# ByteDance's own captcha. `Captcha.setAutoSolve` returned {} and no
+# `Captcha.solveFinished` event ever fired, across three shop routes with
+# waits up to 35 seconds. The extension has no hunter for `oec-ttweb-captcha`.
+CDP_INJECTED = (
+    '<script src="chrome-extension://kjmkgkdkpedkejedfhmfcenooemhbpbo/conte'
+    'nt/captcha/captchafox/interceptor.js"></script><script src="chrome-ext'
+    'ension://kjmkgkdkpedkejedfhmfcenooemhbpbo/content/captcha/mt_captcha/i'
+    'nterceptor.js"></script><script src="chrome-extension://kjmkgkdkpedkej'
+    'edfhmfcenooemhbpbo/content/captcha/turnstile/interceptor.js"></script>'
+    '<script src="chrome-extension://kjmkgkdkpedkejedfhmfcenooemhbpbo/conte'
+    'nt/captcha/turnstile/hunter.js" data-ts-input="cf-turnstile-response">'
+    '</script><script src="chrome-extension://kjmkgkdkpedkejedfhmfcenooemhb'
+    'pbo/content/captcha/amazon_waf/interceptor.js"></script><script src="c'
+    'hrome-extension://kjmkgkdkpedkejedfhmfcenooemhbpbo/content/captcha/yan'
+    'dex/interceptor.js"></script><script src="chrome-extension://kjmkgkdkp'
+    'edkejedfhmfcenooemhbpbo/content/captcha/lemin/interceptor.js"></script'
+    '><script src="chrome-extension://kjmkgkdkpedkejedfhmfcenooemhbpbo/cont'
+    'ent/captcha/arkoselabs/hunter.js"></script><script src="chrome-extensi'
+    'on://kjmkgkdkpedkejedfhmfcenooemhbpbo/content/captcha/arkoselabs/inter'
+    'ceptor.js"></script><script src="chrome-extension://kjmkgkdkpedkejedfh'
+    'mfcenooemhbpbo/content/captcha/recaptcha/interceptor.js"></script><scr'
+    'ipt src="chrome-extension://kjmkgkdkpedkejedfhmfcenooemhbpbo/content/c'
+    'aptcha/recaptcha/hunter.js"></script><script src="chrome-extension://k'
+    'jmkgkdkpedkejedfhmfcenooemhbpbo/content/captcha/keycaptcha/hunter.js">'
+    '</script><script src="chrome-extension://kjmkgkdkpedkejedfhmfcenooemhb'
+    'pbo/content/captcha/geetest_v4/interceptor.js"></script><script src="c'
+    'hrome-extension://kjmkgkdkpedkejedfhmfcenooemhbpbo/content/captcha/gee'
+    'test/interceptor.js"></script><script src="chrome-extension://kjmkgkdk'
+    'pedkejedfhmfcenooemhbpbo/content/communication_helpers.js"></script><s'
+    'cript src="chrome-extension://kjmkgkdkpedkejedfhmfcenooemhbpbo/content'
+    '/core_helpers.js"></script><captcha-widgets></captcha-widgets>')
+
+
 class _NullContext:
     """Stands in for a driver's lifetime while the browser is stubbed.
 
@@ -2357,59 +2409,6 @@ def check_ci_greps_for_a_sentinel_this_suite_can_actually_emit():
           "nothing in tests.yml checks for the suite's summary line")
 
 
-def check_the_scraping_browsers_own_extension_does_not_read_as_a_challenge():
-    """The marker check, run against a page fetched the way a PAID run
-    fetches — which is the only place this trap can appear.
-
-    CLAUDE.md §21 records a guard that passed for the WRONG REASON: it ran
-    only against captures taken with a plain HTTP client, which carry no
-    extension injection at all. Every other fixture in this repo is such a
-    capture.
-
-    The 2Captcha Scraping Browser ships an auto-solve extension that
-    injects its own captcha hunters into every page it loads. Counted in a
-    sibling repo on 2026-09-21 on a page the site plainly served:
-
-        chrome-extension://          16
-        hunter.js                     4
-        cf-turnstile                  1     <- the trap
-        challenges.cloudflare.com     0
-
-    So a marker set carrying `cf-turnstile` reports a blocked run on every
-    good page fetched over `--cdp-endpoint`.
-
-    THIS CHECK SKIPS, and the skip is the honest state rather than an
-    oversight. Every Scraping Browser profile available while this repo was
-    built answered `401 deny_no_user` — a CDP profile's credentials live
-    about a day (CLAUDE.md §19) — so no such capture exists here yet. None
-    of this repo's four markers is one that extension is known to inject;
-    they are ByteDance's own. But "not known to" is not "measured not to",
-    and saying so is the whole point of a recorded skip.
-
-    To close it: fetch any profile page over `--cdp-endpoint`, save it as
-    `captures/tiktok/prof_cdp.html`, add it to `make_fixtures.WANTED`, and
-    this check starts running.
-    """
-    html = FIX.get("profiles", {}).get("cdp_served")
-    if not html:
-        skip("cdp-served fixture",
-             "no capture taken over --cdp-endpoint exists yet (the profiles "
-             "available while this repo was built had expired: 401 "
-             "deny_no_user). The marker set is therefore UNVERIFIED against "
-             "the Scraping Browser's own extension injection.")
-        return
-
-    page_html = json.dumps(html)
-    hits = product_parser.challenge_markers_present(page_html)
-    check("no marker fires on a page fetched over --cdp-endpoint", not hits,
-          "fired: %s — the extension's injection is being read as the "
-          "site's challenge" % hits)
-    check("and the set scores zero WITHOUT an extension strip",
-          not hits,
-          "if a strip were load-bearing, the next marker added would "
-          "inherit the hole (CLAUDE.md §24)")
-
-
 def main():
     global VERBOSE
     parser = argparse.ArgumentParser(description="tiktok-profile-scraper offline suite")
@@ -2570,6 +2569,55 @@ def check_the_waf_interstitial_is_recognised_and_curable():
           not any("please wait" in m.lower()
                   for m in tiktok_payload.WAF_CHALLENGE_MARKERS),
           "ordinary English that a caption or a bio can contain")
+
+
+def check_the_scraping_browsers_own_extension_does_not_read_as_a_challenge():
+    """The marker check, against a page fetched the way a PAID run fetches.
+
+    CLAUDE.md §21 records a guard that passed for the WRONG REASON: it ran
+    only against captures taken with a plain HTTP client, which carry no
+    extension injection at all. Every other fixture in this repo is such a
+    capture. This one is the material a real `--cdp-endpoint` fetch adds.
+
+    It was a recorded SKIP until a live Scraping Browser profile turned up
+    on 2026-09-22 — and the reason it was a skip, rather than an omission,
+    is that "not known to be injected" is not "measured not to be".
+    """
+    served = _SERVED_PAGES()
+    check("there are served fixtures to test against", bool(served))
+
+    # The marker set must score zero on a served page WITH the injection
+    # spliced into it — which is what a paid run actually receives.
+    for name, html in served:
+        with_injection = html.replace("<body>", "<body>" + CDP_INJECTED)
+        hits = product_parser.challenge_markers_present(with_injection)
+        check("no marker fires on %s fetched over --cdp-endpoint" % name,
+              not hits,
+              "fired: %s — the Scraping Browser's own extension is being "
+              "read as the site's challenge" % hits)
+        waf = tiktok_payload.waf_markers_present(with_injection)
+        check("...and no WAF marker either, on %s" % name, not waf,
+              "fired: %s" % waf)
+
+    # And the set must score zero WITHOUT an extension strip, or the strip
+    # becomes load-bearing and the next marker added inherits the hole
+    # (CLAUDE.md §24).
+    for marker in tiktok_payload.BOT_CHALLENGE_MARKERS:
+        check("marker %r is absent from the injected material" % marker,
+              marker not in CDP_INJECTED,
+              "a marker the extension injects would report every paid run "
+              "as blocked")
+
+    # The specific names this family has been burned by, pinned as
+    # PRESENT in the injection — so that if a future edit adds one to the
+    # marker set, the check above fails loudly rather than the repo
+    # shipping a scraper that reports exit 3 on a full catalogue.
+    for burned in ("cf-turnstile", "captcha-widgets", "hunter.js",
+                   "data-ts-input"):
+        check("the extension really does inject %r" % burned,
+              burned in CDP_INJECTED,
+              "if this stops being true the fixture is stale — recapture "
+              "it over --cdp-endpoint")
 
 
 CHECKS = [v for k, v in sorted(globals().items()) if k.startswith("check_")
