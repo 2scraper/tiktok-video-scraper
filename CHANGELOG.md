@@ -8,6 +8,22 @@ closely as a CLI toolkit can. A patch release means **fixes** — it does not
 promise that every flag's default is frozen, and where a default does
 change in one, the note leads with it.
 
+## [Unreleased]
+
+### Fixed
+- **The Scraper API engine failed on every `--wait-text` / `--wait-element` /
+  `--wait-state` call, and was billed for it.** It sent `waitFor` as a
+  JSON-encoded string; measured 2026-09-23 the live API answers that with
+  HTTP 422 "params.waitFor must be an object" and still charges $0.0005,
+  while the same request with an object is answered 200. It is now sent as
+  an object. (The target status was already read from `http_code`; the new
+  regression check pins that too, driving the real `fetch_html` with
+  `requests.post` stubbed.)
+- **`--wait-state networkidle` is refused by the Scraper API** (HTTP 422
+  "params.waitFor.state must be one of: load, domcontentloaded", still
+  billed — measured 2026-09-23 on a sibling repo with the object-shaped
+  `waitFor`). The choice is removed.
+
 ## [0.1.1] — 2026-09-23
 
 > **Correction to v0.1.0.** Its `captcha_solver.py` docstring described a
