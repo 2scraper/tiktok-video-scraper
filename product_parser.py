@@ -74,7 +74,7 @@ SIBLING_HOSTS = {
     "shop.tiktok.com": "a TikTok Shop page — see tiktok-shop-scraper",
     "seller.tiktok.com": "the TikTok Shop seller centre, which needs an account",
     "ads.tiktok.com": "TikTok's ads and Creative Center, which needs an account",
-    "library.tiktok.com": "TikTok's Ad Library, which this family does not read yet",
+    "library.tiktok.com": "TikTok's EU Ad Library — see tiktok-ads-scraper",
 }
 
 _HANDLE_RE = re.compile(r"^[A-Za-z0-9._]{1,24}$")
@@ -595,6 +595,18 @@ STATE_PARSE_ERROR = "parse_error"
 STATE_UNKNOWN = "unknown"
 
 
+def _coerce_status(status: Any) -> Optional[int]:
+    """An HTTP status as an int, or None — whatever type it arrived as."""
+    if status is None or isinstance(status, bool):
+        return None
+    if isinstance(status, int):
+        return status
+    try:
+        return int(str(status).strip())
+    except (TypeError, ValueError):
+        return None
+
+
 def detect_page_state(html: Any, status: Optional[int] = None,
                       url: str = "") -> str:
     """Name what TikTok answered with.
@@ -607,6 +619,13 @@ def detect_page_state(html: Any, status: Optional[int] = None,
     is (§17's classification-order trap). The payload's own verdict
     outranks any threshold.
     """
+    # A status can arrive as a STRING. The 2Captcha Scraper API returns the
+    # upstream status as "200", and the first live run of that path crashed
+    # right here with `'>=' not supported between 'str' and 'int'` — exit 1
+    # on the one engine that costs money, invisible to every offline check
+    # because none of them feeds a status the way that service does.
+    # CLAUDE.md §16: run every path a credential gates.
+    status = _coerce_status(status)
     if is_empty_success(status, html):
         return STATE_EMPTY_SUCCESS
 

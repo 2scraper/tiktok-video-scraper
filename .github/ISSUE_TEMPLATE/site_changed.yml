@@ -1,28 +1,29 @@
-name: Site changed / selectors broke
-description: Etsy changed something and the parser no longer matches.
+name: Site changed
+description: TikTok changed something and this scraper no longer reads it.
 labels: ["site-change"]
 body:
   - type: markdown
     attributes:
       value: |
-        This is the most common way a scraper stops working, and it is worth its
-        own report because the fix is different from a code bug: something on
-        etsy.com moved.
+        The most common way a scraper stops working, and worth its own report
+        because the fix is different from a code bug: something on
+        `www.tiktok.com/embed/@handle and /@handle/video/{id}` moved.
 
-        Useful to know before filing: the parser tries **JSON-LD first**, then a
-        CSS + URL-pattern fallback. Which one broke narrows the fix a lot.
+        This repo reads one structured source, never the rendered page:
+        `__FRONTITY_CONNECT_STATE__` on the embed page, `__UNIVERSAL_DATA_FOR_REHYDRATION__["webapp.video-detail"]` on a video page.
+
+        **Never paste an API key, a proxy password or a `ws://…` endpoint.**
 
   - type: dropdown
     id: what_broke
     attributes:
-      label: What stopped matching
+      label: What stopped working
       options:
-        - Products (0 rows on a page that visibly has products)
-        - A specific field is null or wrong (price, sku, image, URL)
-        - original_price or lowest_price_30d empty out (the tile overlay)
-        - DOM price confirmation dropped below 90% in the run log
-        - Pagination stops early or repeats a page
-        - The captcha detector finds nothing on a page that has one
+        - 0 videos for an account that has them
+        - Hashtags or mentions wrong or missing
+        - A photo post reported as a video (or the reverse)
+        - Enrichment failing (data_source stays 'embed')
+        - A column is null or wrong (say which)
         - Something else
     validations:
       required: true
@@ -30,23 +31,20 @@ body:
   - type: input
     id: url
     attributes:
-      label: URL
-      description: The exact listing URL, and the country your exit IP was in.
-      placeholder: "https://www.etsy.com/search?q=handmade+mug (locale: /de/, exit IP: DE residential, Scraping Browser pid: etsy1)"
+      label: What you asked for
+      description: The exact target, the exit you used (datacentre, residential, or Scraping Browser), and its country.
+      placeholder: "https://www.tiktok.com/@nasa/video/7665075736742530317 (exit: datacentre, FI)"
     validations:
       required: true
 
   - type: textarea
     id: evidence
     attributes:
-      label: Evidence from the page
+      label: Evidence
       description: |
-        Whichever of these you can get. A capture beats a description.
+        A capture beats a description.
 
-        - JSON-LD as the page actually serves it:
-          `python3 -c "import json,sys,re;h=open('dump.html').read();print([m[:400] for m in re.findall(r'<script type=\"application/ld\\+json\">(.*?)</script>',h,re.S)][:2])"`
-        - Or open devtools and paste one `Product` node from the `ItemList`.
-        - For a field problem: the value you got, and the value on the page.
+        `python3 -c "import re,json;h=open('dump.html').read();print('frontity' , '__FRONTITY_CONNECT_STATE__' in h, 'rehydration', '__UNIVERSAL_DATA_FOR_REHYDRATION__' in h)"`
       render: text
     validations:
       required: true
@@ -56,5 +54,5 @@ body:
     attributes:
       label: Anything else
       description: >-
-        Whether it reproduces on a second engine, whether it reproduces from a
-        different country, and when it last worked.
+        Whether it reproduces on a second engine, from a different exit, and
+        when it last worked.

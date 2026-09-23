@@ -11,7 +11,7 @@ __pycache__/
 .venv/
 venv/
 env/
-wellfound_jobs.*
+tiktok_videos.*
 *_debug.html
 *_debug.png
 live_results/
