@@ -8,6 +8,41 @@ closely as a CLI toolkit can. A patch release means **fixes** — it does not
 promise that every flag's default is frozen, and where a default does
 change in one, the note leads with it.
 
+## [Unreleased]
+
+### Fixed
+
+> **`diff_runs.py` compared almost nothing.** Its `TRACKED_FIELDS` were
+> tiktok-profile-scraper's account columns (`follower_count`, `bio`,
+> `is_seller`, …), 26 of which `Video` does not have, so a diff of two runs
+> reported "0 changed" whenever only a count, a hashtag or the sound had
+> changed. It now tracks this repo's own columns, and a `data_source`
+> difference (an `--no-enrich` embed row against a full video-page row) is
+> reported as `source_changed`, which is what the README already said.
+> `smoke_test.py` now pins every tracked name against the dataclass and
+> checks that a changed column is actually reported.
+
+- **Donor prose removed from the shared core.** `output_writer.py`,
+  `diff_runs.py`, the engines, `page_flow.py`, `smoke_test.py`,
+  `.github/ci_checks.py` and the `Dockerfile` carried text from the repos
+  this core was copied from — YouTube comment threads, `--sort top`,
+  reply threads, job listings, "the business", `--mode comments --out
+  software-engineer` — describing those sites as if they were this one.
+  Rewritten from this repo's own README, code and fixtures, or deleted
+  where there was no measured equivalent. Explicit sibling provenance
+  ("measured on tiktok-profile-scraper's route", "a sibling repo
+  (youtube-scraper) had…") is kept and now says whose it is.
+- The engines' docstrings and the Scraper API client's challenge message
+  said "the profile route" where this repo reads the embed and video
+  pages; `--locale` help and the CSP note now say the measurement was
+  tiktok-profile-scraper's.
+- `smoke_test.py`'s docstring described the profile repo's fixtures; it
+  now describes this repo's (`embeds`, `videos`), and `run_meta`'s test
+  data is a `videos` run rather than a `profile` one.
+- `.github/ci_checks.py` no longer exempts an `avatar_id` column this repo
+  does not have from the credential scan.
+- `.env.example` described the profile route and a handle-only `TIKTOK_URL`.
+
 ## [0.1.1] — 2026-09-23
 
 > **Correction to v0.1.0.** Its `captcha_solver.py` docstring described a

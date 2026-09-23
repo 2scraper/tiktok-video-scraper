@@ -643,10 +643,11 @@ def _connect_remote(pw, args) -> _BrowserSession:
 def _open_http(args, pool: Optional[ProxyPool]) -> HttpSession:
     """The default transport: the page, without a browser in front.
 
-    TikTok server-renders the whole account object, so a browser buys
-    nothing on this route — it only costs a Chromium start per run. The
-    browser is what `--transport auto` falls back to when the site
-    actually challenges, which on this route it has not.
+    TikTok server-renders the whole payload of both routes this repo
+    reads (the embed page and the video page), so a browser buys nothing
+    on them — it only costs a Chromium start per run. The browser is what
+    `--transport auto` falls back to when the site actually challenges,
+    which on these routes it has not.
     """
     proxy_url = pool.current if pool else (args.proxy or None)
     user_agent = _chrome_ua("")
@@ -686,10 +687,9 @@ def _prime_session(session, args, url: str) -> Optional[int]:
     A no-op on the HTTP transport, which has no cookie jar worth warming
     and would only pay for one extra page.
 
-    This does NOT read a client version out of the page, the way the
-    YouTube repo this core came from does — TikTok's profile route takes
-    no such parameter, and carrying the call anyway would be a request per
-    run that nothing consumes.
+    This does NOT read a client version out of the page: neither route
+    this repo reads takes such a parameter, and carrying the call anyway
+    would be a request per run that nothing consumes.
     """
     if isinstance(session, HttpSession):
         return None
@@ -703,8 +703,8 @@ def _prime_session(session, args, url: str) -> Optional[int]:
         logger.warning("Could not open %s (%s) — the fetch is tried anyway.",
                        url, _mask_credentials(exc))
     # Bounded, and deliberately short: the readiness wait is insurance
-    # against a page that has not painted, not the fetch itself. A profile
-    # page's payload is in the SOURCE, so a run whose wait times out still
+    # against a page that has not painted, not the fetch itself. An embed or
+    # video page's payload is in the SOURCE, so a run whose wait times out still
     # parses correctly — which is why this warns rather than failing.
     page_flow.wait_for_count(session.count_selector,
                              page_flow.ready_selector(args.mode),
@@ -838,7 +838,7 @@ def _dump(args, name: str, payload: Any) -> None:
 
 def _call(session, args, url: str, budget: SolveBudget,
           label: str) -> Tuple[Optional[int], Any, str]:
-    """GET one profile page and classify the answer. No retries here.
+    """GET one page and classify the answer. No retries here.
 
     Two transports, one contract: `get_text` returns `(status, text)` on
     both, so everything above this line is identical whether a browser or
@@ -963,7 +963,7 @@ def _fetch_with_policy(session_box: Dict[str, Any], pw, args,
 
 
 # ---------------------------------------------------------------------------
-# --mode comments
+# Proxy rotation between pages
 # ---------------------------------------------------------------------------
 
 
@@ -981,11 +981,6 @@ def _rotate_if_per_page(session_box, pw, args, pool, why: str) -> bool:
     issued against exit A and replayed from exit B are a stronger signal
     than either address alone, so the session is torn down and rebuilt
     rather than having its proxy swapped underneath it.
-
-    Safe to do mid-chain on this site, and that is measured rather than
-    assumed: a continuation token fetched by one client was replayed
-    successfully by a bare HTTP client with no cookies at all, so the
-    token is not bound to the session that received it.
     """
     if not pool or not pool.rotates_per_page() or len(pool) < 2:
         return False
@@ -1012,7 +1007,7 @@ def _worker_pool(pool: Optional[ProxyPool], worker_index: int):
 
 
 # ---------------------------------------------------------------------------
-# --mode profile
+# Targets: accounts and videos
 # ---------------------------------------------------------------------------
 
 
@@ -1485,7 +1480,8 @@ def parse_args(argv: Optional[List[str]] = None):
                         "to the first target.")
     p.add_argument("--locale", default="en",
                    help="TikTok's `lang` query parameter. Measured "
-                        "2026-09-22 on the profile route: it changes the "
+                        "2026-09-22 by tiktok-profile-scraper on the profile "
+                        "route: it changes the "
                         "page's chrome and not its data. A caption is "
                         "creator-authored and is never translated.")
     p.add_argument("--format", choices=("json", "csv", "both"), default="json")

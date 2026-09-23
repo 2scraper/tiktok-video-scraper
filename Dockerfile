@@ -4,8 +4,8 @@
 #
 #   docker build -t tiktok-video-scraper .
 #   docker run --rm -v "$PWD/out:/out" tiktok-video-scraper \
-#     --mode comments \
-#     --pages 3 --out /out/software-engineer
+#     --url nasa \
+#     --out /out/nasa
 #
 # Pass --proxy/--twocaptcha-key the same way as running locally, or mount a
 # .env at /app/.env — nothing here bakes in a credential.
