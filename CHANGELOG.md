@@ -8,6 +8,14 @@ closely as a CLI toolkit can. A patch release means **fixes** — it does not
 promise that every flag's default is frozen, and where a default does
 change in one, the note leads with it.
 
+## [0.1.1] — 2026-09-23
+
+> **Correction to v0.1.0.** Its `captcha_solver.py` docstring described a
+> 2Captcha captcha-solving method for TikTok as available. That method is
+> deprecated, and the text no longer offers it. The challenge policy for
+> TikTok's slide puzzle now says `solve: False`, which matches what the
+> code does: no solver for it is implemented.
+
 ## [0.1.0] — 2026-09-22
 
 First release. Reads TikTok videos and their captions from the two routes

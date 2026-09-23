@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tiktok-video-scraper"
-version = "0.1.0"
+version = "0.1.1"
 description = "TikTok video scraper: captions, engagement, sounds, hashtags, downloadable caption tracks and direct media URLs, with a caption's entities read from TikTok's own fields rather than sliced out of the text."
 readme = "README.md"
 license = "MIT"
