@@ -43,6 +43,9 @@ change in one, the note leads with it.
   does not have from the credential scan.
 - `.env.example` described the profile route and a handle-only `TIKTOK_URL`.
 
+- `captcha_solver.py`'s docstring pointed at a "No DataDome solver" section
+  that does not exist in this repo (it came with the copied core). Removed.
+
 ## [0.1.1] — 2026-09-23
 
 > **Correction to v0.1.0.** Its `captcha_solver.py` docstring described a
