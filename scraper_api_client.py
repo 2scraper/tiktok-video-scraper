@@ -255,11 +255,10 @@ def _run_once(args, attempt: int = 1, attempts: int = 1) -> int:
         logger.error(
             "TikTok served a challenge to the Scraper API's request "
             "(markers %s, upstream HTTP %s, %d bytes) — saved to %s. This "
-            "is NEW on the PROFILE route: measured 2026-09-22, that route "
-            "served every request tried, to a bare datacentre address, to "
-            "a residential exit and to a browser alike, so there is no "
-            "measured remedy to recommend and the saved HTML is the "
-            "evidence for what changed. --cdp-url routes the fetch through "
+            "is NEW on the video route: measured 2026-09-22, video pages "
+            "were served to plain curl from a bare datacentre address, so "
+            "there is no measured remedy to recommend and the saved HTML is "
+            "the evidence for what changed. --cdp-url routes the fetch through "
             "a Scraping Browser session with a country segment, which is "
             "the usual next move. This is exit 3, distinct from an empty "
             "result (exit 4).",
@@ -268,8 +267,8 @@ def _run_once(args, attempt: int = 1, attempts: int = 1) -> int:
 
     if state == STATE_VIDEO_UNAVAILABLE:
         # A real answer, not a refusal. TikTok gives one answer for a
-        # banned account and for a handle that never existed, so this says
-        # both readings rather than picking one.
+        # deleted video, a private one and one that never existed, so this
+        # says every reading rather than picking one.
         logger.error(
             "TikTok returned no video for %s. It is deleted, private, or "
             "was never there — it is not a block, and routing through "
@@ -301,9 +300,9 @@ def _run_once(args, attempt: int = 1, attempts: int = 1) -> int:
         return 1
 
     # What this path does NOT carry, said once, so nobody concludes a
-    # column is broken. Nothing, as it happens: a profile page is
-    # server-rendered whole, so this client and the three engines produce
-    # the same row. Stated rather than left silent, because on the sibling
+    # column is broken. Nothing, as it happens: a video page is
+    # server-rendered whole, so this client and the three engines in
+    # `--mode video` produce the same row. Stated rather than left silent, because on the sibling
     # repos the equivalent note lists real gaps.
     logger.info("Read %s by @%s — %s plays, %s likes, %s comments, read "
                 "from %s. This client reads ONE VIDEO PAGE, which is the "

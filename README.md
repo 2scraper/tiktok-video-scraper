@@ -41,7 +41,8 @@ access.
 
 This is the opposite of what this family's other repos would lead you to
 expect, so it is stated with the numbers. Measured 2026-09-22,
-`GET /@nasa` with a plain HTTP client:
+`GET /@nasa` (the profile page, the route tiktok-profile-scraper reads)
+with a plain HTTP client:
 
 | exit | served |
 |---|---|

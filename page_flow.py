@@ -61,7 +61,7 @@ from product_parser import (STATE_CHALLENGE, STATE_CONTENT,
 # Readiness — for the browser engines only
 # ---------------------------------------------------------------------------
 #
-# The browser engines do not read the account out of the DOM — it is in
+# The browser engines do not read the video out of the DOM — it is in
 # the page SOURCE, in a script tag, server-rendered. So what they wait for
 # is not a rendered grid but a document that has finished arriving. That is
 # a much weaker requirement than most repos in this family have, and
@@ -71,12 +71,13 @@ from product_parser import (STATE_CHALLENGE, STATE_CONTENT,
 # A run that never sees the selector still works — the payload is parsed
 # out of the source either way — so this is a wait, not a gate.
 #
-# `[data-e2e="user-page"]` is the profile header's own test id, which is a
-# build artefact and therefore listed AFTER nothing more durable exists;
-# `body` is the floor that always matches, which is why the minimum is 1
-# rather than the >1 CLAUDE.md §5 requires of a LISTING. A profile page
-# holds exactly one account, so "more than one match" is not a thing that
-# can be waited for here.
+# `[data-e2e="browse-video"]` and `[data-e2e="video-desc"]` are the video
+# page's own test ids, which are build artefacts and therefore listed
+# because nothing more durable exists; `body` is the floor that always
+# matches, which is why the minimum is 1 rather than the >1 CLAUDE.md §5
+# requires of a LISTING. A video page holds exactly one video, and the
+# embed window's payload is in the source, so "more than one match" is not
+# a thing that needs waiting for here.
 READY_SELECTOR = '[data-e2e="browse-video"], [data-e2e="video-desc"], body'
 MIN_CARD_MATCHES = 1
 CONTENT_TIMEOUT_MS = 30_000
@@ -149,7 +150,7 @@ def classify(html, status: Optional[int] = None, url: str = "",
 
 
 STATE_POLICY = {
-    # A profile page with an account on it.
+    # A page with its video payload on it.
     STATE_CONTENT: {"retry": False, "solve": False, "blocked": False,
                     "parse": True},
     # TikTok returned no video. A real, complete answer to the question
@@ -198,8 +199,8 @@ STATE_POLICY = {
                   "parse": False},
     # A page the site plainly served, with its own assets all over it, that
     # this parser failed to read. OUR bug, and it gets its own name so it
-    # cannot be reported as "no such account" — which would send the
-    # reader to check the handle instead of the parser (CLAUDE.md §20).
+    # cannot be reported as "no such video" — which would send the reader
+    # to check the URL instead of the parser (CLAUDE.md §20).
     # One retry in case a response was truncated, and always worth a dump.
     STATE_PARSE_ERROR: {"retry": True, "solve": False, "blocked": False,
                         "parse": False},

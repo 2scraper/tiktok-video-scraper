@@ -37,7 +37,7 @@ backstop, not a review.
 
 ## Reporting a site change
 
-This repo reads TikTok videos, captions and media links from `www.tiktok.com/embed/@handle and /@handle/video/{id}`, which is both routes are served to a bare HTTP client from a datacentre address — no key, no proxy, no account.
+This repo reads TikTok videos, captions and media links from `www.tiktok.com/embed/@handle` and `/@handle/video/{id}`. Both routes are served to a bare HTTP client from a datacentre address — no key, no proxy, no account.
 
 The parser reads one structured source and never the rendered DOM:
 
