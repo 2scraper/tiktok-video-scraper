@@ -8,10 +8,34 @@ closely as a CLI toolkit can. A patch release means **fixes** — it does not
 promise that every flag's default is frozen, and where a default does
 change in one, the note leads with it.
 
-## [Unreleased]
+## [0.1.2] — 2026-09-29
+
+> **Behaviour changes.** Enrichment that was asked for and did not happen
+> is now `partial` / exit 6 (`stop_reason: enrich_incomplete`) — it was
+> exit 0. A page refused once and then served is no longer blocked. Browser
+> `--concurrency` works, and a run whose workers all fail is exit 5.
 
 ### Fixed
 
+- **A recovered page is not a blocked one.** `_fetch_with_policy` kept a
+  "refusal seen" flag that a later successful attempt never cleared, so a
+  retry that got the page still reported it blocked. Measured live on
+  2026-09-29 (pyppeteer, @nasa): one empty HTTP 200, then the profile,
+  then `partial` / `stop_reason: blocked` with `pages_failed: []`. And the
+  HTTP -> browser switch spent a `--retries` attempt, so with `--retries 0`
+  a browser started and was never asked for the page. Both fixed in all
+  three engines, with a check that drives the real function.
+- **Browser `--concurrency` crashed every worker.** The workers were handed
+  the Playwright driver the main thread created, and Playwright's sync
+  driver belongs to its thread: `greenlet.error: Cannot switch to a
+  different thread`, then exit 4 with no rows. Each worker now starts its
+  own driver, on first use, in its own thread. And a target no worker
+  could fetch now ends as a counted failure (exit 5 when nothing was
+  gathered) instead of vanishing into "0 results". Live: 3 of 3, exit 0.
+- **Failed enrichment reported success.** With every video page
+  challenged, the embed rows were kept, `enrich_failures` was filled, and
+  the run said `complete` / exit 0. It is now `partial` with
+  `stop_reason: enrich_incomplete`.
 > **`diff_runs.py` compared almost nothing.** Its `TRACKED_FIELDS` were
 > tiktok-profile-scraper's account columns (`follower_count`, `bio`,
 > `is_seller`, …), 26 of which `Video` does not have, so a diff of two runs

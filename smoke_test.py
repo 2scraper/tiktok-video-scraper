@@ -1697,7 +1697,11 @@ def check_every_engine_exposes_the_same_public_surface():
     # What each engine legitimately holds that its twins do not: the names
     # its own driver layer needs. Everything else must match.
     DRIVER_LOCAL = {
-        "playwright_scraper": {"sync_playwright", "PWError", "PWTimeout"},
+        # `_LazyDriver`: Playwright's driver is tied to the thread that
+        # made it, so each worker starts its own; the twins' drivers have
+        # no thread affinity and pass the run's through.
+        "playwright_scraper": {"sync_playwright", "PWError", "PWTimeout",
+                               "_LazyDriver"},
         "puppeteer_scraper": {"launch", "connect", "asyncio", "concurrent",
                               "PyppeteerError", "NetworkError", "PPTimeout",
                               "_Loop", "_FETCH_JS", "RemoteBrowserError",
@@ -2721,6 +2725,181 @@ def check_scraper_api_waitfor_is_object_and_status_is_http_code():
     check(f"Scraper API: the status handed onward must be the target's "
           f"http_code 403 (int), not the API's own verdict, got {status!r}",
           status == 403 and isinstance(status, int))
+
+
+def check_a_recovered_page_is_not_blocked_and_a_transport_switch_refetches():
+    """Audit 2026-09-29 #4, both halves reproduced before the fix.
+
+    * `blocked` was set by ANY refusal met on the way and never cleared, so
+      a retry that got the page still reported it blocked: measured live,
+      pyppeteer @nasa — one empty HTTP 200, then the profile, then exit 6
+      with stop_reason blocked and pages_failed [].
+    * the HTTP -> browser switch spent a `--retries` attempt, so with
+      `--retries 0` a browser started and was never asked for the page.
+    """
+    blocked_state = next(
+        s for s in page_flow.STATE_POLICY
+        if page_flow.counts_as_blocked(s) and page_flow.should_retry(s))
+    content = product_parser.STATE_CONTENT
+    for name in ENGINES:
+        engine = _import_engine(name)
+        if engine is None:
+            skip(name, "engine library absent")
+            continue
+
+        class FakeHttp(engine.HttpSession):
+            def __init__(self):
+                self.proxy_url = None
+
+            def close(self):
+                pass
+
+        class FakeBrowser:
+            proxy_url = None
+
+            def close(self):
+                pass
+
+        def run(sequence, **overrides):
+            answers = list(sequence)
+            calls = []
+
+            def fake_call(session, args, url, *rest):
+                calls.append(type(session).__name__)
+                return 200, "<html></html>", answers.pop(0)
+
+            saved = (engine._call, engine._open_session, engine._prime_session)
+            engine._call = fake_call
+            engine._open_session = lambda pw, args, pool: FakeBrowser()
+            engine._prime_session = lambda session, args, url: 200
+            try:
+                args = _fault_args(engine, **overrides)
+                box = {"session": FakeHttp() if args.transport == "auto"
+                       else FakeBrowser(), "prime_url": "u"}
+                extra = ({},) if "body" in inspect.signature(
+                    engine._fetch_with_policy).parameters else ()
+                out = engine._fetch_with_policy(box, None, args, None, "u",
+                                                *extra, "label")
+            finally:
+                (engine._call, engine._open_session,
+                 engine._prime_session) = saved
+            return out, calls
+
+        (_, _, state, blocked), _ = run([blocked_state, content], retries=1)
+        equal("%s: a refusal then the page ends as content" % name,
+              state, content)
+        equal("%s: ...and is not reported blocked" % name, blocked, False)
+        (_, _, state, blocked), _ = run([blocked_state], retries=0)
+        equal("%s: a page that ENDS refused is still blocked" % name,
+              blocked, True)
+        (_, _, state, blocked), calls = run([blocked_state, content],
+                                            retries=0, transport="auto")
+        equal("%s: with --retries 0 the switch still asks the browser"
+              % name, calls, ["FakeHttp", "FakeBrowser"])
+        equal("%s: ...and gets the page" % name, (state, blocked),
+              (content, False))
+
+
+def check_every_target_ends_with_an_outcome_when_workers_cannot_start():
+    """Audit 2026-09-29 #2, reproduced live before the fix: every browser
+    worker died on `greenlet.error`, its targets vanished, and the run
+    reported "0 products" — exit 4, a crash read as an empty answer.
+    Here every worker thread fails to open a session; each target must
+    still come back as a counted failure."""
+    for name in ENGINES:
+        engine = _import_engine(name)
+        if engine is None:
+            skip(name, "engine library absent")
+            continue
+
+        class FakeSession:
+            proxy_url = None
+
+            def close(self):
+                pass
+
+        def open_session(pw, args, pool):
+            if threading.current_thread() is not threading.main_thread():
+                raise RuntimeError("planted: this worker cannot start")
+            return FakeSession()
+
+        saved = (engine._open_session, engine._prime_session)
+        engine._open_session = open_session
+        engine._prime_session = lambda session, args, url: 200
+        try:
+            args = _fault_args(engine, url='7665075736742530317,7686600539525762318,7681723633164717325', mode="video",
+                               concurrency=2, transport="browser")
+            box = {"session": FakeSession(), "prime_url": "u"}
+            rows, meta = engine._run_video(box, None, args, None)
+        finally:
+            engine._open_session, engine._prime_session = saved
+        equal("%s: no rows" % name, rows, [])
+        equal("%s: all three targets are counted as failed" % name,
+              meta.get("pages_failed"), [1, 2, 3])
+        equal("%s: ...so the run says a page failed, not 'empty'" % name,
+              meta.get("stop_reason"), "page_failed")
+
+
+def check_a_worker_drives_its_own_driver_not_the_runs():
+    """Playwright's sync driver belongs to the thread that made it. The
+    workers were handed the main thread's `pw` and every browser worker
+    died on `greenlet.error` (live, 2026-09-29). Pinned in source because
+    exercising it needs real browsers in threads; the live run is the
+    other half of the evidence."""
+    for name in ENGINES:
+        src = open(os.path.join(HERE, name + ".py"), encoding="utf-8").read()
+        start = src.index("def _fetch_videos_concurrently(")
+        end = src.index("\ndef ", start + 10)
+        # The body of the inner `worker()` only: the enclosing function's
+        # own signature takes `pw`, and a substring over it would find
+        # "(pw," on correct code too.
+        body = src[start:end]
+        worker = body[body.index("    def worker(index: int):"):
+                      body.index("    threads = [")]
+        check("%s: the worker takes a driver of its own" % name,
+              "own = _worker_driver(pw)" in worker
+              and "_release_worker_driver(own)" in worker)
+        check("%s: ...and never hands the run's pw onward" % name,
+              "(pw," not in worker and "box, pw," not in worker)
+    pw_src = open(os.path.join(HERE, "playwright_scraper.py"),
+                  encoding="utf-8").read()
+    check("playwright's worker driver is a per-thread one",
+          "def _worker_driver(pw):\n    return _LazyDriver()" in pw_src)
+
+
+def check_failed_enrichment_is_a_partial_run():
+    """Audit 2026-09-29 #3: with every video page challenged, the embed
+    rows were kept, `enrich_failures` was filled — and the run said
+    complete / exit 0. A client reading the exit code took rows without
+    likes, comments or dates as finished. Asked-for enrichment that did
+    not happen makes the run partial; `--no-enrich` stays complete."""
+    challenge = next(s for s in page_flow.STATE_POLICY
+                     if page_flow.counts_as_blocked(s)
+                     and not page_flow.should_parse(s))
+    for name in ENGINES:
+        engine = _import_engine(name)
+        if engine is None:
+            skip(name, "engine library absent")
+            continue
+
+        def fetch(box, pw, args, pool, url, label):
+            if "/embed/" in url:
+                return 200, embed_page("nasa"), product_parser.STATE_CONTENT, False
+            return 200, "<html></html>", challenge, True
+
+        for enrich, want in ((True, "enrich_incomplete"), (False, "completed")):
+            def body(FakeSession):
+                args = _fault_args(engine, url="nasa", mode="videos",
+                                   enrich=enrich)
+                box = {"session": FakeSession(), "prime_url": "u"}
+                return engine._run_videos(box, None, args, None)
+            rows, meta = _with_stubs(engine, fetch, body)
+            check("%s enrich=%s: the embed rows are kept" % (name, enrich),
+                  len(rows) > 0)
+            equal("%s enrich=%s: stop_reason" % (name, enrich),
+                  meta["stop_reason"], want)
+        equal("%s: enrich_incomplete is not a complete run" % name,
+              "enrich_incomplete" in output_writer.COMPLETE_STOP_REASONS, False)
 
 
 CHECKS = [v for k, v in sorted(globals().items()) if k.startswith("check_")

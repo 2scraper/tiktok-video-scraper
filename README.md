@@ -76,6 +76,12 @@ python3 -m venv venv
 ./venv/bin/python playwright_scraper.py --url nasa
 ```
 
+**One clone, one virtualenv.** The four tiktok-* repos share top-level
+module names (`product_parser`, `output_writer`, `playwright_scraper`, …),
+so `pip install .` of two of them into one environment makes the second
+silently replace the first. The commands above never do that — keep it
+that way, and give each repo its own venv.
+
 An account's recent videos, each read from its own page:
 
 ```bash
@@ -257,9 +263,16 @@ than fetched and parsed to nothing.
 | 6 | partial |
 
 **A run that finds nothing writes nothing.** `--allow-empty` is the
-opt-out. Every run writes `<out>.meta.json` recording the status, the stop
-reason, which targets failed by number, the window sizes, and
-`why_not_exhaustive`.
+opt-out. Every run that writes output writes `<out>.meta.json` beside it,
+recording the status, the stop reason, which targets failed by number, the
+window sizes, and `why_not_exhaustive`. A run that FAILED writes neither
+file, so the last good output and its own sidecar stay together.
+
+**Exit 6 when asked-for enrichment did not happen.** With enrichment on
+(the default), a video whose own page could not be read keeps its embed
+row — caption and a rounded play count, nothing else — and the run is
+`partial` with `stop_reason: enrich_incomplete`, listing the ids under
+`enrich_failures`. `--no-enrich` asks for embed rows and stays complete.
 
 ---
 
