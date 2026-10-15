@@ -10,6 +10,8 @@ change in one, the note leads with it.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-15
+
 > **Behaviour changes.** Output files now get the mode `open()` would give
 > them (`0o666` minus the umask) instead of `0600`, and an existing file
 > keeps its mode. CSV cells that a spreadsheet would run as a formula get a
