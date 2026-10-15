@@ -4,24 +4,25 @@
 # Real runs against tiktok.com. tests.yml (deliberately) never touches the
 # site, a credential or a paid product; everything that does is here.
 #
-# WHY THIS CANARY IS NOT GATED ON A SECRET
-# ----------------------------------------
-# CLAUDE.md §11 says a canary that cannot pass must SKIP rather than fail,
-# because a check that is always red teaches everyone to ignore checks. The
-# other half of that rule is §21's, proven on bbb-scraper and rakuten-scraper: a
-# canary that CAN pass without a credential should never be gated on one.
+# WHAT IS GATED AND WHAT IS NOT
+# -----------------------------
+# A canary that CAN pass without a credential should never be gated on one,
+# and a canary that did not reach the site must never end green.
 #
-# This repo is the second case. Its central README claim is that TikTok's
-# EMBED and VIDEO routes answer a bare datacentre address with no key, no
-# proxy and no account — measured 2026-09-22 from Hetzner Helsinki, served
-# to plain curl and to a browser alike. A GitHub runner is a bare datacentre address
-# in a different network. So this job runs a real scrape every morning and
-# is EXPECTED to be green, and if TikTok ever puts that route behind a
-# challenge the badge goes red the next day and the claim is retested
-# without anyone having to remember to.
+# The `videos` job is the first case. This repo's central README claim is
+# that TikTok's EMBED and VIDEO routes answer a bare datacentre address with
+# no key, no proxy and no account — measured 2026-09-22 from Hetzner
+# Helsinki, served to plain curl and to a browser alike. A GitHub runner is
+# a bare datacentre address in a different network. So this job runs a real
+# scrape every morning and is EXPECTED to be green; if TikTok ever puts
+# that route behind a challenge, it goes red the next day (exit 3 or 5, or
+# too few rows, all fail it) and the claim is retested without anyone
+# having to remember to.
 #
-# The paid path is the one that skips: `scraper-api` needs TWOCAPTCHA_KEY
-# and says so with a ::notice:: when it is absent.
+# The `scraper-api` job tests the paid path. It needs the TWOCAPTCHA_KEY
+# secret, and without it the job FAILS with an ::error:: naming that
+# secret: a skipped paid check is not a tested one. With the key it must
+# exit 0 and produce the requested video.
 name: canary
 
 on:
@@ -78,7 +79,7 @@ jobs:
 
           # Exit 5 is a DEFECT here, not an access condition: this canary
           # uses no credential, so "the content was never obtained" is
-          # impossible rather than routine (CLAUDE.md §24).
+          # impossible rather than routine.
           if rc != 0:
               fail.append(f"exit {rc}")
           if meta["status"] != "complete":
@@ -150,6 +151,20 @@ jobs:
                 f"{meta['status']}")
           PY
 
+      # A handle with no account is answered (HTTP 400 on the embed route
+      # since 2026-10-15, with the app's own "no such account" node), not
+      # failed: the run must exit 4, not 5 after retries.
+      - name: A missing account exits 4
+        run: |
+          set +e
+          python playwright_scraper.py --url zz9nonexistenthandlexq7 \
+            --transport http --out canary_missing
+          rc=$?
+          if [ "$rc" != 4 ]; then
+            echo "::error::a missing account exited $rc, expected 4"
+            exit 1
+          fi
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -161,42 +176,69 @@ jobs:
           retention-days: 7
 
   scraper-api:
-    name: the paid path (skips without a key)
+    name: the paid path (fails without TWOCAPTCHA_KEY)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       # `secrets` is not available in a job-level `if`, so presence is
-      # tested through job env and read in each step's `if` (CLAUDE.md §11).
+      # tested through job env and read in each step's `if`.
       HAS_KEY: ${{ secrets.TWOCAPTCHA_KEY != '' }}
     steps:
+      - name: Require the secret
+        if: env.HAS_KEY != 'true'
+        run: |
+          echo "::error::TWOCAPTCHA_KEY is not set in this repository's"\
+               "secrets, so the Scraper API path was NOT tested. Add the"\
+               "secret to run it; this job stays red until then."
+          exit 1
+
       - uses: actions/checkout@v4
-        if: env.HAS_KEY == 'true'
       - uses: actions/setup-python@v5
-        if: env.HAS_KEY == 'true'
         with:
           python-version: "3.13"
 
       - name: Install the core
-        if: env.HAS_KEY == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Fetch one video through the Scraper API
-        if: env.HAS_KEY == 'true'
+        id: api
         env:
           # Through the ENVIRONMENT, never a --flag: a secret in argv is
-          # readable by anything that can run `ps` (CLAUDE.md §3, §11).
+          # readable by anything that can run `ps`.
           TWOCAPTCHA_KEY: ${{ secrets.TWOCAPTCHA_KEY }}
         run: |
           set +e
-          python scraper_api_client.py --url 7665075736742530317 --out canary_api
+          python scraper_api_client.py --url 7665075736742530317 \
+            --format json --out canary_api
           echo "api_exit=$?" >> "$GITHUB_OUTPUT"
 
-      - name: Say why this was skipped
-        if: env.HAS_KEY != 'true'
+      - name: Assert what the paid run produced
         run: |
-          echo "::notice::Skipped: TWOCAPTCHA_KEY is not set. This path is"\
-               "the only one in this repo that costs money, and the repo's"\
-               "own README says it is unnecessary for these routes —"\
-               "so a missing key is an expected state, not a failure."
+          python - <<'PY'
+          import json, os, sys
+
+          rc = int("${{ steps.api.outputs.api_exit }}")
+          fail = []
+          # Any non-zero exit is a failure here, including 3 (blocked) and
+          # 5 (never obtained): the point of the paid path is to obtain it.
+          if rc != 0:
+              fail.append(f"exit {rc}")
+          rows = (json.load(open("canary_api.json"))
+                  if os.path.exists("canary_api.json") else [])
+          if len(rows) != 1:
+              fail.append(f"{len(rows)} rows, expected the one video")
+          for row in rows:
+              if row.get("sku") != "7665075736742530317":
+                  fail.append(f"sku {row.get('sku')!r}")
+              for column in ("created_at", "play_count", "author_username"):
+                  if row.get(column) is None:
+                      fail.append(f"{column} is null")
+          if fail:
+              print("::error::scraper-api canary FAILED")
+              for line in fail:
+                  print(f"  - {line}")
+              sys.exit(1)
+          print("scraper-api canary OK: 1 video, exit 0")
+          PY

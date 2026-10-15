@@ -8,6 +8,52 @@ closely as a CLI toolkit can. A patch release means **fixes** — it does not
 promise that every flag's default is frozen, and where a default does
 change in one, the note leads with it.
 
+## [Unreleased]
+
+> **Behaviour changes.** Output files now get the mode `open()` would give
+> them (`0o666` minus the umask) instead of `0600`, and an existing file
+> keeps its mode. CSV cells that a spreadsheet would run as a formula get a
+> leading `'` (CSV only). A negative `--retries`, `--retry-delay`,
+> `--delay` or `--proxy-block-retries`, a `--pages` below 1 and a
+> Scraper API `--timeout` below 1 are now usage errors (exit 2).
+> `--retries 0` is still one attempt. A handle with no account now exits
+> 4 instead of 5.
+
+### Fixed
+
+- **Outputs were owner-only.** The atomic writer renamed a `0600` temp
+  file over the target, so every `.json`, `.csv` and `.meta.json` came out
+  `0600` whatever the umask, and an existing file was narrowed to `0600`.
+- **CSV formula cells.** Captions, nicknames and hashtags are written by
+  the creator. A string cell beginning with `=`, `+`, `-`, `@`, a tab, CR
+  or LF now gets a leading apostrophe in the CSV; numbers and the JSON are
+  unchanged. The count is in the sidecar as `csv_cells_escaped`.
+- **A missing account was reported as a failed fetch.** The embed route
+  now answers a handle with no account with HTTP 400 and its own
+  "no such account" node (measured 2026-10-15). The classifier read any
+  4xx as a transient error, retried it and ended with exit 5. A 4xx whose
+  payload states that same status is now read as the site answering:
+  exit 4, no retries.
+- **Negative counts and delays were accepted.** A negative `--retries` was
+  silently read as 0; a negative delay crashed at `time.sleep` mid-run.
+  They are now refused up front, in all three engines and in
+  `scraper_api_client.py`.
+- `.env.example` no longer states a fixed lifetime for Scraping Browser
+  credentials; they are time-limited, and a working endpoint still must
+  never be pasted anywhere durable.
+- `ci_checks.py --sample-check` reported a meaningless "discounted" count;
+  it now reports how many sample rows were read from the video page.
+- Comments, docstrings and workflow notes no longer cite an instruction
+  file that is not part of this repository; the rules are stated in place.
+  A suite check keeps it that way.
+
+### Changed
+
+- The canary's paid `scraper-api` job fails with an error naming
+  `TWOCAPTCHA_KEY` when the secret is missing, instead of skipping green,
+  and with the key it now asserts the exit code and the returned video.
+  The free job also checks that a missing account exits 4.
+
 ## [0.1.2] — 2026-09-29
 
 > **Behaviour changes.** Enrichment that was asked for and did not happen

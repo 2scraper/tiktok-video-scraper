@@ -295,7 +295,12 @@ is treated as unset. Variables: `TWOCAPTCHA_KEY`, `TIKTOK_CDP_ENDPOINT`,
 `.github/workflows/canary.yml` runs a real scrape every morning **from a
 bare GitHub runner with no secrets**, and is expected green. That is the
 README's central claim under test daily: if TikTok puts the embed or video
-route behind a challenge, the badge goes red the next day.
+route behind a challenge, the badge goes red the next day. The same job
+checks that a handle with no account exits 4.
+
+A second job runs the paid Scraper API path. It needs the `TWOCAPTCHA_KEY`
+repository secret and fails, naming that secret, when it is absent: a
+skipped check is not a passing one.
 
 ---
 
@@ -306,8 +311,8 @@ python3 smoke_test.py       # the offline suite — no network, no browser neede
 python3 -m pytest
 ```
 
-The suite also holds the fixture CLAUDE.md asks every repo in this family
-to hold: the material the 2Captcha Scraping Browser's auto-solve extension
+The suite also holds a fixture every repo in this family holds: the
+material the 2Captcha Scraping Browser's auto-solve extension
 injects into every page it loads. Measured 2026-09-22 on a real
 `--cdp-endpoint` fetch of a page TikTok served — 16 `chrome-extension://`
 tags, 4 `hunter.js`, and `cf-turnstile` once. That last one is the trap:

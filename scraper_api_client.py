@@ -19,7 +19,7 @@ served to plain curl from a bare datacentre address, measured 2026-09-22.
 
     # TWOCAPTCHA_KEY and TIKTOK_URL are read from .env, so neither needs
     # to be typed — a secret in argv is readable by anything that can run
-    # `ps` (CLAUDE.md §3).
+    # `ps`.
 """
 
 import argparse
@@ -60,6 +60,7 @@ MAX_API_TIMEOUT = 120
 # a Scraping Browser that will not accept a connection, and two definitions
 # of one exit code is how a family's contract drifts.
 from output_writer import EXIT_API_ERROR  # noqa: E402
+import page_flow  # noqa: E402
 
 def _mask_credentials(url: str) -> str:
     """Never print a username:password embedded in a ws://... or http://... URL."""
@@ -182,7 +183,7 @@ def fetch_html(args) -> str:
     # the word "success" against 400 and crashed on its first live run
     # (`'>=' not supported between 'str' and 'int'`), while the comment
     # beneath this line claimed the status was being threaded through.
-    # CLAUDE.md §16: re-read what a remote API actually returns, rather
+    # Re-read what a remote API actually returns, rather
     # than what the client's field names imply it returns.
     raw_status = body.get("http_code")
     try:
@@ -286,8 +287,8 @@ def _run_once(args, attempt: int = 1, attempts: int = 1) -> int:
             "%s — saved to %s. A served TikTok video page always has one, "
             "so this is either a page kind this client does not read or a "
             "change in the site. NOT reported as 'no video': a served page "
-            "that parses to nothing is our bug, not an empty result "
-            "(CLAUDE.md §20).", len(html), exc, dump)
+            "that parses to nothing is our bug, not an empty result.",
+            len(html), exc, dump)
         return 1
 
     row = rows[0] if rows else None
@@ -406,7 +407,7 @@ def parse_args():
     p.add_argument("--format", choices=["json", "csv", "both"], default="both")
     p.add_argument("--out", default="tiktok_video_scraperapi",
                    help="Output file prefix")
-    p.add_argument("--timeout", type=int, default=60,
+    p.add_argument("--timeout", type=page_flow.positive_int, default=60,
                    help=f"API-side task timeout in seconds "
                         f"(1-{MAX_API_TIMEOUT}, default 60)")
     p.add_argument("--cdp-url", default=None,
@@ -423,10 +424,10 @@ def parse_args():
                       # measured 2026-09-23.
                       choices=("load", "domcontentloaded"),
                       help="Wait for a page lifecycle state.")
-    p.add_argument("--retries", type=int, default=1,
+    p.add_argument("--retries", type=page_flow.non_negative_int, default=1,
                    help="Retries when the response is a challenge page. Each "
                         "one is a fresh billable task.")
-    p.add_argument("--retry-delay", type=int, default=5)
+    p.add_argument("--retry-delay", type=page_flow.non_negative_int, default=5)
     p.add_argument("--dump-html", default=None,
                    help="Write the exact HTML the service returned.")
     p.add_argument("--allow-empty", action="store_true")

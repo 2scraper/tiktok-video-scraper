@@ -1,7 +1,7 @@
 """product_parser.py — this IS the site.
 
 Everything TikTok-shaped that is not one of the handful of named constants
-in the engines lives here (CLAUDE.md §1). The generic reading of TikTok's
+in the engines lives here. The generic reading of TikTok's
 two structured payloads lives one file over, in `tiktok_payload.py`, which
 is byte-identical across the tiktok-* repos and SHA-pinned by each one's
 suite.
@@ -9,8 +9,8 @@ suite.
 Two sources, two applications, two coverages
 ============================================
 This repo reads videos, and TikTok publishes them in two places that
-belong to two different front-end applications — CLAUDE.md §23's shape,
-met again:
+belong to two different front-end applications — a shape this family has
+met before:
 
     /embed/@handle        __FRONTITY_CONNECT_STATE__   the embed app
         10-12 most recent videos. Each carries id, caption, playCount,
@@ -39,7 +39,7 @@ so rather than paginating into an empty answer.
 
 `/embed/@handle` is the substitute, and it is a WINDOW rather than a feed:
 `?page=2` returns the identical ten to twelve videos and the payload's own
-`page` field stays 1. CLAUDE.md §23 — before trusting `?page=N`, fetch one
+`page` field stays 1. The rule: before trusting `?page=N`, fetch one
 page past the end and read what comes back.
 """
 
@@ -81,7 +81,7 @@ _HANDLE_RE = re.compile(r"^[A-Za-z0-9._]{1,24}$")
 _PROFILE_PATH_RE = re.compile(r"^/@([A-Za-z0-9._]{1,24})/?$")
 # A video id is a 19-digit snowflake. Anchored on the URL, which is a
 # contract with search engines, rather than on any class in the rendered
-# page (CLAUDE.md §4).
+# page.
 _VIDEO_PATH_RE = re.compile(r"^/@([A-Za-z0-9._]{1,24})/(?:video|photo)/(\d{15,21})/?$")
 _VIDEO_ID_RE = re.compile(r"^\d{15,21}$")
 
@@ -91,7 +91,7 @@ VIDEO_DETAIL_SCOPE = "webapp.video-detail"
 class NotAVideoUrl(ValueError):
     """A TikTok URL, but not one this repo reads — with the reason.
 
-    CLAUDE.md §5: "is not a TikTok URL" is false for
+    "is not a TikTok URL" is false for
     `https://www.tiktok.com/tag/nasa` and sends the reader hunting for a
     typo that is not there.
     """
@@ -188,9 +188,8 @@ def page_url(url: str, page: int) -> str:
 
     Measured 2026-09-22: `?page=2` and `?page=3` on `/embed/@nasa` return
     the identical eleven videos AND the payload's own `page` field stays 1
-    — the server stating outright which page it served. CLAUDE.md §23
-    records two other sites in this family that answer an out-of-range page
-    with page 1, and a run that trusted its own request re-collected it for
+    — the server stating outright which page it served. Two other sites in this family
+    answer an out-of-range page with page 1, and a run that trusted its own request re-collected it for
     as long as it was asked to and reported success.
     """
     if page == 1:
@@ -277,7 +276,7 @@ def _expiry_from_url(url: Optional[str]) -> Optional[str]:
 #   1. `start` and `end` index in UTF-16 CODE UNITS, not Python
 #      characters. 27 of 85 came out mis-sliced under Python indexing —
 #      one of them as 'tRock 10.0 🗡' where the entity is '@ProjectRock'.
-#      CLAUDE.md §10 records the same trap on another site in this family.
+#      The same trap was recorded on another site in this family.
 #
 #   2. The text after an `@` is a DISPLAY NAME, not a handle. A caption
 #      reading "@sadie" is a mention of the account `sad_i_e` — and
@@ -361,7 +360,7 @@ def parse_embed(html: Any, handle: str, scraped_at: str,
     marked `data_source="embed"` because it carries a strict SUBSET of a
     video page's columns, and `diff_runs.py` reports a difference that
     comes with a `data_source` difference as `source_changed` rather than
-    as the site having changed (CLAUDE.md §9).
+    as the site having changed.
     """
     node = embed_node(html)
     diag: Dict[str, Any] = {
@@ -412,7 +411,7 @@ def image_post(item: Dict[str, Any]) -> Dict[str, Any]:
     URL. The item then has `duration`, `width` and `height` all 0 and no
     `playAddr`, which reads exactly like a broken video row — so the KIND
     is named from TikTok's own `imagePost` key rather than inferred from
-    the zeroed fields. CLAUDE.md §17: order signals by how much they
+    the zeroed fields. Order signals by how much they
     prove, and a key the site itself sets proves more than a threshold.
 
     Each image carries a list of equivalent CDN URLs (different hosts,
@@ -612,11 +611,11 @@ def detect_page_state(html: Any, status: Optional[int] = None,
     """Name what TikTok answered with.
 
     The argument ORDER is the contract: every caller writes
-    `detect_page_state(html, status, url)` — CLAUDE.md §17, and
+    `detect_page_state(html, status, url)`, and
     `smoke_test.py` binds every call site against this signature.
 
     The CHECK order is by how much each signal PROVES, not by how cheap it
-    is (§17's classification-order trap). The payload's own verdict
+    is (the classification-order trap). The payload's own verdict
     outranks any threshold.
     """
     # A status can arrive as a STRING. The 2Captcha Scraper API returns the
@@ -624,13 +623,31 @@ def detect_page_state(html: Any, status: Optional[int] = None,
     # right here with `'>=' not supported between 'str' and 'int'` — exit 1
     # on the one engine that costs money, invisible to every offline check
     # because none of them feeds a status the way that service does.
-    # CLAUDE.md §16: run every path a credential gates.
+    # Run every path a credential gates.
     status = _coerce_status(status)
     if is_empty_success(status, html):
         return STATE_EMPTY_SUCCESS
 
     text = decode_page(html)
     if status is not None and status >= 400:
+        # One 4xx is the site ANSWERING rather than failing. Measured
+        # 2026-10-15 with a plain HTTPS client: `/embed/@<a handle with no
+        # account>` is HTTP 400 carrying the embed app's own node with
+        # `isError: true`, `errorStatus: 400` and `errorCode: 10221`. That
+        # is the same "no such account" statement the route used to make
+        # under a 200, so it is read as one: terminal, not blocked, never
+        # retried. Before this it was `error`, retried as transient, and a
+        # mistyped handle ended as exit 5 ("never obtained") instead of 4.
+        # Only when the payload names the SAME status — a 4xx without that
+        # node is still an error.
+        if status < 500:
+            try:
+                node = embed_node(text)
+            except PayloadError:
+                node = None
+            if node is not None and node.get("isError") \
+                    and _coerce_status(node.get("errorStatus")) == status:
+                return STATE_VIDEO_UNAVAILABLE
         return STATE_ERROR
     if challenge_markers_present(text):
         return STATE_CHALLENGE
