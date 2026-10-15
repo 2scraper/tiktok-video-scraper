@@ -13,7 +13,7 @@ Every one of those lives OUTSIDE the two scopes this repo's parser reads —
 state's own data node. So trimming to those scopes is not a scrubbing step
 bolted on afterwards: it removes the session material as a side effect of
 keeping only what is under test, which is the version of this that cannot
-rot (CLAUDE.md §10).
+rot.
 
 What IS kept, deliberately
 ==========================
@@ -24,7 +24,7 @@ stripped would test neither that nor the `parse_qs` path.
 
 Nothing here is a private individual. A TikTok video and its caption are a
 public creator's published work, not a comment thread — which is the
-distinction CLAUDE.md §10 draws, and the reason nothing is replaced with a
+distinction that matters, and the reason nothing is replaced with a
 placeholder in this repo while a sibling replaces every commenter.
 
 Verify a trimmed fixture parses identically to its untrimmed original
@@ -52,7 +52,7 @@ from tiktok_payload import (PayloadError, embed_node,          # noqa: E402
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                    "fixtures_generated.json")
 
-# Each capture is here for a reason no other one covers — CLAUDE.md §15's
+# Each capture is here for a reason no other one covers — the rule that
 # "one dump teaches you one locale", applied to POST SHAPES.
 EMBEDS = {
     "vid_embed_nasa.html": ("nasa", "an 11-video window, one of them a photo post"),
@@ -83,7 +83,7 @@ VIDEOS = {
 # `transcode_feature_id` — which nothing here reads and which is full of
 # 32-hex strings this repo's own credential scan (rightly) flags.
 #
-# CLAUDE.md §24 asks the question in the right order: before exempting a
+# Ask the question in the right order: before exempting a
 # value, check whether it is needed at all. It is not. Removing it is
 # strictly better than forgiving it, because an exemption is a hole a real
 # key could later hide in — and `--verify` proves the trim lost nothing by

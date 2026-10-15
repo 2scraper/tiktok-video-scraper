@@ -2,8 +2,8 @@
 smoke_test.py — the offline suite for tiktok-video-scraper.
 
 One file of plain functions with fixtures loaded from
-`fixtures_generated.json`. No pytest, no conftest, no fixtures directory
-(CLAUDE.md §10); `tests/test_smoke.py` wraps this as a single pytest test so
+`fixtures_generated.json`. No pytest, no conftest, no fixtures directory;
+`tests/test_smoke.py` wraps this as a single pytest test so
 `pytest` works as an entry point without a second copy of the checks.
 
     python3 smoke_test.py            run everything
@@ -98,7 +98,7 @@ DRIVER_IMPORTS = {
     "puppeteer_scraper": "pyppeteer",
 }
 
-# The family's CLI contract (CLAUDE.md §9). Re-derived rather than copied:
+# The family's CLI contract. Re-derived rather than copied:
 #
 #   grep -ohE '"--[a-z0-9-]+"' */playwright_scraper.py | sort | uniq -c
 #
@@ -120,11 +120,10 @@ CONTRACT_FLAGS = {
 # window is then read from its own page.
 SITE_FLAGS = {"--transport", "--enrich", "--no-enrich"}
 
-# CLAUDE.md §12, and ASSEMBLED from pieces rather than written out — which
+# Banned wording, ASSEMBLED from pieces rather than written out — which
 # is what lets the scan cover this file too. Three sibling repos exempted
 # their own suite from the scan, so the one file most likely to acquire a
-# stray phrase or a pasted credential was the one file nobody scanned
-# (§22).
+# stray phrase or a pasted credential was the one file nobody scanned.
 BANNED_WORDING = (
     "cloud " + "browser", "anti" + "detect browser",
     "2scraper Anti" + "detect Browser",
@@ -225,7 +224,7 @@ def _SERVED_PAGES():
 # into a page, captured verbatim on 2026-09-22 from a real
 # `--cdp-endpoint` fetch of a page TikTok SERVED.
 #
-# This is the fixture CLAUDE.md §24 asks every repo in this family to hold,
+# This is the fixture every repo in this family holds,
 # and it was a recorded SKIP here until a live Scraping Browser profile
 # turned up. It is 1,882 bytes of script tags and one custom element; the
 # page they came from was 453 KB of real content.
@@ -233,7 +232,7 @@ def _SERVED_PAGES():
 # Counted on it: 16 `chrome-extension://` tags, 4 `hunter.js`,
 # `cf-turnstile` once, `data-ts-input` once and `captcha-widgets` twice.
 # Every one of those is a marker some repo in this family has carried at
-# some point, and `cf-turnstile` is the one CLAUDE.md §19 singles out —
+# some point, and `cf-turnstile` is the one singled out —
 # it fires on GOOD pages over CDP and was measured ABSENT from a real
 # Cloudflare challenge on another site.
 #
@@ -278,7 +277,7 @@ class _NullContext:
 
     Each engine wraps its driver in `_driver_context`; Playwright's opens a
     real `sync_playwright()`, so the concurrency checks below swap in this
-    no-op to drive the queue with no browser anywhere (CLAUDE.md §10).
+    no-op to drive the queue with no browser anywhere.
     """
 
     def __enter__(self):
@@ -496,7 +495,7 @@ def check_a_photo_post_is_named_rather_than_left_looking_broken():
     is named.
 
     Detected by TikTok's own `imagePost` key — a structural signal rather
-    than a threshold on the zeroed fields (CLAUDE.md §17: order signals by
+    than a threshold on the zeroed fields (order signals by
     how much they prove).
     """
     photo, video = row("photo_post"), row("plain")
@@ -510,7 +509,7 @@ def check_a_photo_post_is_named_rather_than_left_looking_broken():
           "got title=%r desc=%r" % (photo.image_title, photo.description))
     # The zeroed video fields are what made this look broken; pin that they
     # are still zero, so a future change is a decision rather than a
-    # surprise (CLAUDE.md §10).
+    # surprise.
     equal("a photo post's duration is 0, not null", photo.duration_seconds, 0)
     equal("...and it has no playAddr", photo.play_addr, None)
     check("...while a video does", bool(video.play_addr))
@@ -525,7 +524,7 @@ def check_a_photo_post_is_named_rather_than_left_looking_broken():
     body = src[src.index("def image_post"):src.index("def parse_video")]
     # The docstring EXPLAINS the zeroed fields, so scan the code only —
     # otherwise the check fails on the comment that documents it, which is
-    # CLAUDE.md §22's "a note about a banned phrase is a use of it".
+    # the rule that "a note about a banned phrase is a use of it".
     code = "\n".join(line for line in body.splitlines()
                      if not line.strip().startswith("#"))
     code = re.sub(r'"""[\s\S]*?"""', "", code)
@@ -575,7 +574,7 @@ def check_the_two_sources_are_a_subset_and_say_so():
 
     That is the whole reason `data_source` is a column: a diff between a
     fast run and an enriched one would otherwise report every absent
-    column as the site having changed (CLAUDE.md §9).
+    column as the site having changed.
     """
     e = embed_rows("nasa")[0]
     equal("an embed row says where it came from", e.data_source, "embed")
@@ -658,7 +657,7 @@ def check_signed_media_urls_carry_their_expiry():
 
 
 def check_the_row_schema():
-    """The family prefix is byte-identical and in order (§9)."""
+    """The family prefix is byte-identical and in order."""
     names = [f.name for f in fields(Video)]
     equal("family prefix first and in order", names[:5],
           ["source", "scraped_at", "url", "sku", "title"])
@@ -729,7 +728,7 @@ def check_the_zero_byte_200_is_a_refusal_not_an_empty_answer():
 
 
 def check_no_marker_matches_a_page_tiktok_serves():
-    """CLAUDE.md §18, counted rather than asserted."""
+    """No challenge marker matches a good page, counted rather than asserted."""
     served = [page(n) for n in VIDEOS] + [embed_page(n) for n in EMBEDS]
     for i, html in enumerate(served):
         hits = product_parser.challenge_markers_present(html)
@@ -748,7 +747,7 @@ def check_no_marker_matches_a_page_tiktok_serves():
 def check_the_state_policy_is_read_and_not_hardcoded():
     """Every state has a policy, and the engines consult it.
 
-    CLAUDE.md §17, and measured across this family as 8 repos of 24 that
+    Measured across this family as 8 repos of 24 that
     define a policy and then hardcode the decision in their engines.
     """
     states = [v for k, v in vars(product_parser).items()
@@ -770,8 +769,8 @@ def check_the_shared_payload_module_has_not_drifted():
     """`tiktok_payload.py` is byte-identical across the tiktok-* repos.
 
     The three repos were split at the user's request, against the advice
-    that a shared parser cannot live in three places without drifting
-    (CLAUDE.md §16). This digest is the mitigation: the file may change,
+    that a shared parser cannot live in three places without drifting.
+    This digest is the mitigation: the file may change,
     but it must change in every repo in the same commit, or the others go
     red.
     """
@@ -790,9 +789,9 @@ def check_the_embed_window_does_not_paginate():
 
     Measured 2026-09-22: page 2 and page 3 of `/embed/@nasa` return the
     identical eleven videos AND the node's own `page` field stays 1 — the
-    server stating outright which page it served. CLAUDE.md §23 records
-    two other sites in this family that answer an out-of-range page with
-    page 1, and a run that trusted its own request re-collected it for as
+    server stating outright which page it served. Two other sites in this family
+    answer an out-of-range page with page 1, and a run that trusted its own
+    request re-collected it for as
     long as it was asked to and reported success.
     """
     equal("page 1 is the URL itself",
@@ -818,7 +817,7 @@ def check_the_embed_window_does_not_paginate():
 
 
 def check_the_window_is_reported_as_a_sample():
-    """CLAUDE.md §21: complete and exhaustive are different words.
+    """Complete and exhaustive are different words.
 
     The embed window is ten to twelve videos however many the account has
     posted — @khaby.lame's is 10 of 1,353 — so a run of it is genuinely
@@ -847,7 +846,7 @@ def check_the_window_is_reported_as_a_sample():
 
 
 def check_targets_are_refused_with_the_reason():
-    """CLAUDE.md §5: a false refusal sends the reader hunting for a typo."""
+    """A false refusal sends the reader hunting for a typo."""
     cases = [
         ("https://www.tiktok.com/tag/nasa", "hashtag"),
         ("https://www.tiktok.com/search?q=x", "search"),
@@ -960,7 +959,7 @@ def check_the_sidecar_states_which_source_each_row_came_from():
 
 
 def check_policy_constants_have_a_consumer():
-    """§17: a policy constant nothing reads is the same defect as dead code.
+    """A policy constant nothing reads is the same defect as dead code.
 
     `RETRY_ON_BLOCKED` carried a paragraph of justification in a sibling repo
     and no engine consulted it, so setting it False changed nothing.
@@ -989,7 +988,7 @@ def check_policy_constants_have_a_consumer():
 
 def check_csv_and_json_writers():
     """JSON and CSV carry the same columns in the same order, and an empty
-    CSV still carries its header (CLAUDE.md §9)."""
+    CSV still carries its header."""
     from output_writer import write_csv, write_json
     rows = [row("plain"), row("entities")]
     expected = [f.name for f in fields(Video)]
@@ -1065,7 +1064,7 @@ def check_a_run_that_finds_nothing_writes_nothing():
         code = save([], prefix, "json", allow_empty=True)
         equal("--allow-empty WRITES the empty file...", 
               json.load(open(prefix + ".json", encoding="utf-8")), [])
-        # ...and still reports exit 4. Pinned deliberately (§10: pin a known
+        # ...and still reports exit 4. Pinned deliberately (pin a known
         # behaviour rather than half-guarding it): "zero rows" is true
         # whether or not the file was written, and a caller that wanted the
         # file still wants to know the result was empty.
@@ -1119,7 +1118,7 @@ def check_engines_import_their_driver_at_module_level():
 
 
 def check_shared_calls_bind_against_the_real_signature():
-    """§17's check #1, and the one that earns its keep.
+    """Binding check #1, and the one that earns its keep.
 
     A sibling repo shipped `classify(html, url=…)` in two of three engines
     against a callee taking `status` second, and BOTH crashed on their first
@@ -1133,7 +1132,7 @@ def check_shared_calls_bind_against_the_real_signature():
     # EVERY shared module, not the three that are easy. A sibling repo
     # widened this after a key arrived and five calls into functions that
     # never existed came out of the credential-gated paths — the ones
-    # nobody runs, for the obvious reason (CLAUDE.md §16). Two of the
+    # nobody runs, for the obvious reason. Two of the
     # modules below are reachable only with a key.
     import captcha_solver
     import diff_runs
@@ -1163,8 +1162,8 @@ def check_shared_calls_bind_against_the_real_signature():
                     direct[alias.asname or alias.name] = (
                         targets[node.module], alias.name)
 
-        # A name bound ANYWHERE in this file shadows a same-named module
-        # (CLAUDE.md §22). An engine that takes `proxy_pool` as a parameter
+        # A name bound ANYWHERE in this file shadows a same-named module.
+        # An engine that takes `proxy_pool` as a parameter
         # is calling a method on an object, not a module attribute, and
         # without this rule that reported twenty-one false positives on a
         # clean repo in a sibling. Parameters count whether or not they
@@ -1251,7 +1250,7 @@ def check_shared_calls_bind_against_the_real_signature():
 
 
 def check_engine_flag_sets():
-    """§17's check #2: against the contract AND against each other, both ways.
+    """Binding check #2: the flag sets, against the contract AND against each other, both ways.
 
     A missing flag fails; so does closing a difference the README documents.
     """
@@ -1291,7 +1290,7 @@ def check_banned_and_removed_flags():
     EXITS is the proxy's business, not the scraper's. On `fingerprint_client.py` the
     name `--country` is legitimate — there it picks a fingerprint locale,
     not a target — which is why this check is scoped to the engines rather
-    than to the tree (CLAUDE.md §10).
+    than to the tree.
 
     What the rule is really about is an option that can disagree with
     reality, and the ones that CAN on this site are all handled with
@@ -1337,7 +1336,7 @@ def check_banned_and_removed_flags():
 
 
 def check_undefined_names_in_every_module():
-    """§10: compileall proves a file PARSES, not that its names RESOLVE.
+    """Compileall proves a file PARSES, not that its names RESOLVE.
 
     A live run of a sibling repo's pyppeteer engine died with NameError on a
     line reached only while fetching, after an import had been removed — the
@@ -1376,7 +1375,7 @@ def check_undefined_names_in_every_module():
 
 
 def check_dockerfile_copies_everything_the_entrypoint_imports():
-    """§10: all three repos in this family shipped an image that died with
+    """All three repos in this family shipped an image that died with
     ModuleNotFoundError on every invocation, --help included, because
     proxy_pool.py was missing from the COPY list. CI never built the image;
     this check needs no Docker."""
@@ -1424,7 +1423,7 @@ def check_env_example_documents_exactly_what_the_loader_reads():
 
 
 def check_a_copied_env_example_reads_as_UNSET():
-    """§17: `cp .env.example .env` followed by a run must not connect.
+    """`cp .env.example .env` followed by a run must not connect.
 
     The placeholder check was a literal set in a sibling repo, and the two
     credentialled URLs are documented the way the vendor documents them —
@@ -1445,7 +1444,7 @@ def check_a_copied_env_example_reads_as_UNSET():
           % (sorted(values), sorted(env_config.ENV_KEYS)))
     # Every CREDENTIAL must read as unset. The default TARGET must not: it is
     # a real, usable URL, and blanking it would remove the one setting this
-    # file exists to make convenient (§17's check #3 says exactly this — the
+    # file exists to make convenient (that is the point of this check — the
     # credentials unset, the non-credential default still usable).
     CREDENTIALS = {"TWOCAPTCHA_KEY", "TIKTOK_CDP_ENDPOINT", "TIKTOK_PROXY"}
     before = dict(os.environ)
@@ -1477,7 +1476,7 @@ def check_a_copied_env_example_reads_as_UNSET():
 
 
 def check_credential_scan_is_one_implementation_invoked_from_both():
-    """§17: two sources of truth, one dead and one holed.
+    """Two sources of truth, one dead and one holed.
 
     `.github/ci_checks.py` sat in three repos invoked by NOTHING, while
     tests.yml carried an inline grep doing a narrower version of the same job
@@ -1494,7 +1493,7 @@ def check_credential_scan_is_one_implementation_invoked_from_both():
     # file being missing: two suites in this family run INSIDE the Docker
     # image, which deliberately COPYs no .github/, and a check that quietly
     # starts passing once its input disappears is the same failure this
-    # function is about (CLAUDE.md §22).
+    # function is about.
     if not os.path.isdir(workflow_dir):
         skip("ci-wiring", "no .github/ in this tree (the Docker image)")
     elif os.path.exists(workflow):
@@ -1523,7 +1522,7 @@ def check_credential_scan_is_one_implementation_invoked_from_both():
                   "tests.yml's offline job mentions %r — one implementation, "
                   "in ci_checks.py, invoked from both" % marker)
         # And the guard must have had something to read, or it passed for the
-        # wrong reason (CLAUDE.md §22).
+        # wrong reason.
         check("...and the offline job was actually found to scan",
               "ci_checks.py" in offline, "no offline job in tests.yml")
     result = subprocess.run([sys.executable, script, "--all"], cwd=HERE,
@@ -1545,7 +1544,7 @@ def check_the_credential_scan_survives_a_venv_in_the_tree():
     The fix is structural rather than a longer list of names — a directory
     holding `pyvenv.cfg` is a virtualenv whatever it is called — and this
     pins BOTH halves, because narrowing a credential scan is exactly how one
-    stops catching things. CLAUDE.md §22 records a sibling repo whose scan
+    stops catching things. A sibling repo's scan
     caught an UNTRACKED `.env.bak` holding a live key, so scanning must not
     be reduced to tracked files.
     """
@@ -1600,7 +1599,7 @@ def check_the_credential_scan_survives_a_venv_in_the_tree():
 
 
 def check_banned_wording():
-    """§12: enforced by this test rather than by review."""
+    """Enforced by this test rather than by review."""
     for root, dirs, files in os.walk(HERE):
         dirs[:] = [d for d in dirs if d not in
                    (".git", "__pycache__", ".pytest_cache", "node_modules")]
@@ -1630,7 +1629,7 @@ def check_worker_pools_start_on_different_exits():
 
 
 def check_fingerprint_kwargs_are_ones_the_driver_accepts():
-    """§10: an unknown key in new_context(**kwargs) is a TypeError at launch,
+    """An unknown key in new_context(**kwargs) is a TypeError at launch,
     on the PAID path, at runtime."""
     engine = _import_engine("playwright_scraper")
     if engine is None:
@@ -1660,7 +1659,7 @@ def check_every_engine_exposes_the_same_public_surface():
     Read from the SOURCE rather than from imported modules, and that is
     the fix rather than a style choice. The first version compared the
     engines that happened to import, so in a single-engine virtualenv —
-    the only configuration this repo's README supports (§6: install
+    the only configuration this repo's README supports (install
     exactly one) — it compared ONE engine against nothing and reported
     itself passed. Measured: 0 pairs compared, suite green.
 
@@ -1751,7 +1750,7 @@ def check_every_engine_exposes_the_same_public_surface():
 
 def check_every_solve_is_counted_against_the_budget():
     """`SOLVES_PER_PAGE` is a MONEY limit, so every call that can buy must
-    be counted — CLAUDE.md §23.
+    be counted.
 
     `handle_captcha_if_present` is called TWICE per attempt in every engine
     in this family: once before the response is classified (so a challenge
@@ -1820,7 +1819,7 @@ def check_every_solve_is_counted_against_the_budget():
 
 
 def check_a_dead_proxy_is_reported_as_a_proxy_failure():
-    """CLAUDE.md §8: a proxy failure is not a timeout, and the two want
+    """A proxy failure is not a timeout, and the two want
     opposite responses — another try at the same exit versus a different one.
 
     The engines all compute the reason (`_proxy_failure`) and, WITH a pool,
@@ -1846,7 +1845,7 @@ def check_a_dead_proxy_is_reported_as_a_proxy_failure():
         # The first version of this check read that block in all three
         # engines and failed on code that was correct. Reading the wrong
         # block is how a check like this passes, or fails, for the wrong
-        # reason (CLAUDE.md §22).
+        # reason.
         anchor = "def _fetch_with_policy("
         if anchor not in source:
             check("%s has a give-up branch to check" % module, False)
@@ -1897,7 +1896,7 @@ def check_a_dead_proxy_is_reported_as_a_proxy_failure():
 
 
 def check_engines_do_not_evaluate_a_string_in_the_browser():
-    """§18: a site whose CSP omits `unsafe-eval` kills wait_for_function with
+    """A site whose CSP omits `unsafe-eval` kills wait_for_function with
     an EvalError and takes the run down with exit 1, on the site's most
     obvious URL. TikTok's CSP allows eval today, and the cheap habit
     costs nothing on a site that would have allowed it."""
@@ -1915,7 +1914,7 @@ def check_engines_do_not_evaluate_a_string_in_the_browser():
 
 
 def check_credentials_never_reach_a_log():
-    """§8: an EXCEPTION MESSAGE is a log, and the masker must be GLOBAL.
+    """An EXCEPTION MESSAGE is a log, and the masker must be GLOBAL.
 
     A Playwright connection error repeats the endpoint five times (the
     message plus a four-line call log), so a masker handling only the first
@@ -1959,7 +1958,7 @@ def check_sample_output_matches_the_schema():
     # The sample is cut from a real run and NOT anonymised, which is a
     # deliberate difference from the sibling repos in this family.
     #
-    # CLAUDE.md §10's rule is about a private individual: a comment carries
+    # The anonymisation rule is about a private individual: a comment carries
     # a real person's display name and their own words. A row here is a
     # large public account's published video — its caption, the counts the
     # site computes, the sound it used. Replacing those with placeholders
@@ -2039,7 +2038,7 @@ def check_per_page_rotation_actually_rotates_per_page():
     def run(rotate, handles):
         # Assembled from pieces, not written out: the credential scan reads
         # this file, and a literal `user:pass@host` here would make the scan
-        # fail on its own test data (CLAUDE.md §22).
+        # fail on its own test data.
         exits = ["http:" + "//" + "u" + ":" + "p" + "@one.example:1",
                  "http:" + "//" + "u" + ":" + "p" + "@two.example:2"]
         pool = proxy_pool.ProxyPool(exits, rotate=rotate)
@@ -2141,12 +2140,12 @@ def check_a_site_that_answered_is_not_a_run_that_failed():
 
 
 def check_a_fingerprint_is_applied_whole_or_not_at_all():
-    """CLAUDE.md §24: a HALF identity is measured worse than none.
+    """A HALF identity is measured worse than none.
 
     Four defects lived on this path, every one of them a SILENT success —
     the call was accepted, the log said nothing, and the page disagreed
     with the fingerprint. All four were found by reading the values back
-    out of a live page on 2026-09-21, which is what §24 tells you to do
+    out of a live page on 2026-09-21, which is the way to find them
     and which no amount of reading this code would have produced:
 
       1. `navigator.languages` reported `["en-US"]` against the
@@ -2234,7 +2233,7 @@ def check_a_fingerprint_is_applied_whole_or_not_at_all():
         check("%s applies the client hints beside the user agent" % module,
               '"userAgent": user_agent, "userAgentMetadata": metadata'
               in source,
-              "a bare override is the thing §24 measured being refused")
+              "a bare override is the thing measured being refused")
         check("%s refuses to apply a partial identity" % module,
               "HALF identity is worse than" in source,
               "no brand list must mean no override at all")
@@ -2275,7 +2274,7 @@ def check_the_credential_scan_covers_the_files_it_most_needs_to():
     """The repo's own guard was blind to its biggest files, twice over.
 
     Both were found by PLANTING a real-shaped key and running the scan
-    rather than by reading it (CLAUDE.md §23), and both reported
+    rather than by reading it, and both reported
     "nothing credential-shaped" over a file that held one:
 
       1. `.json` and `.csv` were not in `SCANNED_SUFFIXES` at all, so
@@ -2292,7 +2291,7 @@ def check_the_credential_scan_covers_the_files_it_most_needs_to():
     Added with no new allowlist entries, which is the point: the real
     fixtures and sample carry zero 32-hex strings and zero credentialled
     URLs, so the strictest rule now covers the largest files instead of
-    acquiring an exception a real key could hide behind (CLAUDE.md §24).
+    acquiring an exception a real key could hide behind.
     """
     sys.path.insert(0, os.path.join(HERE, ".github"))
     import ci_checks
@@ -2331,7 +2330,7 @@ def check_the_credential_scan_covers_the_files_it_most_needs_to():
     # The sample is ASSEMBLED from pieces rather than written out, and that
     # is not fussiness — the scan now reads this file, and a literal
     # credentialled URL here would make the check fail on its own test
-    # data. CLAUDE.md §22: a note about a banned string is a use of it, and
+    # data. A note about a banned string is a use of it, and
     # assembling is what lets the scan cover the suite instead of
     # exempting the one file most likely to acquire a pasted secret.
     sample = "ws:" + "//" + "acct7" + ":" + "s3cr3tpw" + "@" + "host:9222"
@@ -2352,7 +2351,7 @@ def check_the_credential_scan_covers_the_files_it_most_needs_to():
 def check_ci_greps_for_a_sentinel_this_suite_can_actually_emit():
     """The `engine-smoke` job must be ABLE to fail.
 
-    That job exists for one reason (CLAUDE.md §10): "skipped, engine absent"
+    That job exists for one reason: "skipped, engine absent"
     reads identically to a real import error, so CI installs each engine and
     fails if THAT engine's group still reports a skip. It works by grepping
     the suite's own output for a sentinel.
@@ -2361,7 +2360,7 @@ def check_ci_greps_for_a_sentinel_this_suite_can_actually_emit():
     imported"` — a string no suite in this family emits. Checked 2026-09-18,
     seven sibling repos carry the same dead grep, so in none of them could
     the job ever have failed. It passed for the wrong reason, which is
-    §22's "a check that swallows the loudest failure it could report".
+    "a check that swallows the loudest failure it could report".
 
     This check is the guard against that coming back: whatever sentinel the
     workflow looks for, this suite has to be capable of printing it. It
@@ -2371,7 +2370,7 @@ def check_ci_greps_for_a_sentinel_this_suite_can_actually_emit():
     """
     workflow = os.path.join(HERE, ".github", "workflows", "tests.yml")
     if not os.path.isdir(os.path.join(HERE, ".github")):
-        # §22: trigger on the WHOLE .github directory being absent — which
+        # Trigger on the WHOLE .github directory being absent — which
         # is the Docker image, where it is deliberately not COPYed — and
         # never on a file inside it going missing, because a check that
         # quietly starts passing once its input disappears is the failure
@@ -2465,7 +2464,7 @@ def check_no_module_defines_a_name_twice():
 
     That is the dangerous shape: a duplicate that is currently harmless
     and becomes a silent wrong answer the moment somebody edits one copy.
-    CLAUDE.md §22's statement-after-return check is the same family of
+    The statement-after-return check is the same family of
     defect — something the parser accepts and a reader never sees.
     """
     import collections
@@ -2489,7 +2488,7 @@ def check_no_module_defines_a_name_twice():
 
 
 def check_no_statement_follows_a_return_in_the_same_block():
-    """CLAUDE.md §22: found the same fifteen dead lines in six repos.
+    """Found the same fifteen dead lines in six repos.
 
     A function whose `def` line had been lost, leaving its docstring and
     body absorbed into the end of the function above it. It parses, it
@@ -2564,7 +2563,7 @@ def check_the_waf_interstitial_is_recognised_and_curable():
           product_parser.detect_page_state(page_html, 200)
           != product_parser.STATE_CHALLENGE)
 
-    # CLAUDE.md §18: count every marker on pages you KNOW are good.
+    # Count every marker on pages you KNOW are good.
     for marker in tiktok_payload.WAF_CHALLENGE_MARKERS:
         for name, served in _SERVED_PAGES():
             check("%r does not appear on served page %s" % (marker, name),
@@ -2579,7 +2578,7 @@ def check_the_waf_interstitial_is_recognised_and_curable():
 def check_the_scraping_browsers_own_extension_does_not_read_as_a_challenge():
     """The marker check, against a page fetched the way a PAID run fetches.
 
-    CLAUDE.md §21 records a guard that passed for the WRONG REASON: it ran
+    A guard was recorded that passed for the WRONG REASON: it ran
     only against captures taken with a plain HTTP client, which carry no
     extension injection at all. Every other fixture in this repo is such a
     capture. This one is the material a real `--cdp-endpoint` fetch adds.
@@ -2605,8 +2604,7 @@ def check_the_scraping_browsers_own_extension_does_not_read_as_a_challenge():
               "fired: %s" % waf)
 
     # And the set must score zero WITHOUT an extension strip, or the strip
-    # becomes load-bearing and the next marker added inherits the hole
-    # (CLAUDE.md §24).
+    # becomes load-bearing and the next marker added inherits the hole.
     for marker in tiktok_payload.BOT_CHALLENGE_MARKERS:
         check("marker %r is absent from the injected material" % marker,
               marker not in CDP_INJECTED,
@@ -2900,6 +2898,192 @@ def check_failed_enrichment_is_a_partial_run():
                   meta["stop_reason"], want)
         equal("%s: enrich_incomplete is not a complete run" % name,
               "enrich_incomplete" in output_writer.COMPLETE_STOP_REASONS, False)
+
+
+def _missing_account_embed(error_status=400):
+    """The embed route's answer for a handle with no account, as served on
+    2026-10-15 under HTTP 400. The node's keys and values are the real ones;
+    the surrounding app state is cut to the path `embed_node` reads."""
+    node = {"isFetching": False, "isReady": True,
+            "route": "/embed/@zz9nonexistenthandlexq7/",
+            "link": "/embed/@zz9nonexistenthandlexq7", "query": {}, "page": 1,
+            "errorCode": 10221, "errorStatus": error_status, "isError": True,
+            "pageName": "error",
+            "userInfo": {"uniqueId": "zz9nonexistenthandlexq7"}}
+    state = {"source": {"data": {"/embed/@zz9nonexistenthandlexq7": node}}}
+    return ('<!DOCTYPE html><html><head><script id='
+            '"__FRONTITY_CONNECT_STATE__" type="application/json">'
+            + json.dumps(state) + "</script></head><body></body></html>")
+
+
+def check_a_missing_account_under_http_400_is_an_answer_not_an_error():
+    """A handle with no account is HTTP 400 on the embed route, with the
+    app's own `isError` node naming that status. It is the site answering
+    (terminal, exit 4), not a transient error retried into exit 5."""
+    url = "https://www.tiktok.com/embed/@zz9nonexistenthandlexq7"
+    detect = product_parser.detect_page_state
+    equal("400 + the app's own isError node is video_unavailable",
+          detect(_missing_account_embed(), 400, url),
+          product_parser.STATE_VIDEO_UNAVAILABLE)
+    equal("...and the status may arrive as a string",
+          detect(_missing_account_embed(), "400", url),
+          product_parser.STATE_VIDEO_UNAVAILABLE)
+    equal("a node naming a DIFFERENT status stays an error",
+          detect(_missing_account_embed(404), 400, url),
+          product_parser.STATE_ERROR)
+    equal("a 400 with no node stays an error",
+          detect("<html><body>Bad Request</body></html>", 400, url),
+          product_parser.STATE_ERROR)
+    equal("a 500 stays an error even with the node",
+          detect(_missing_account_embed(500), 500, url),
+          product_parser.STATE_ERROR)
+    policy = page_flow.STATE_POLICY[product_parser.STATE_VIDEO_UNAVAILABLE]
+    equal("video_unavailable is not retried", policy["retry"], False)
+    equal("video_unavailable is not blocked", policy["blocked"], False)
+
+
+def check_output_files_honour_the_umask_and_keep_an_existing_mode():
+    """`NamedTemporaryFile` is 0600 and a rename keeps it: without a chmod
+    every output was owner-only whatever the umask said."""
+    from output_writer import write_csv, write_json, write_run_meta
+    written = [row("plain")]
+    for umask, want in ((0o022, 0o644), (0o002, 0o664), (0o077, 0o600)):
+        old = os.umask(umask)
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                p = os.path.join(tmp, "out")
+                write_json(written, p + ".json")
+                write_csv(written, p + ".csv")
+                write_run_meta(p, {"status": "complete"})
+                for suffix in (".json", ".csv", ".meta.json"):
+                    equal("umask %03o: a new %s is %03o" % (umask, suffix, want),
+                          oct(os.stat(p + suffix).st_mode & 0o777), oct(want))
+                os.chmod(p + ".json", 0o664)
+                write_json(written, p + ".json")
+                equal("umask %03o: an existing 0664 file keeps its mode" % umask,
+                      oct(os.stat(p + ".json").st_mode & 0o777), oct(0o664))
+                left = [f for f in os.listdir(tmp) if f.endswith(".tmp")]
+                equal("umask %03o: no temp file is left behind" % umask, left, [])
+        finally:
+            os.umask(old)
+
+
+def check_csv_cells_that_read_as_formulas_are_escaped():
+    """Captions, nicknames and hashtags are written by the creator. A cell a
+    spreadsheet would run as a formula gets a leading apostrophe in the CSV
+    only, and the sidecar counts them."""
+    import dataclasses
+    base = row("plain")
+    hostile = dataclasses.replace(
+        base, title='=HYPERLINK("http://x")', author_nickname="@a",
+        hashtags=["-1+1", "b"], play_count=-5)
+    plain = dataclasses.replace(base, sku="2", title="nasa", author_nickname="NASA")
+    with tempfile.TemporaryDirectory() as tmp:
+        prefix = os.path.join(tmp, "out")
+        rc = output_writer.finish_run(
+            [hostile, plain], prefix, "both", False, blocked=False,
+            stop_reason="completed", pages_requested=1, pages_completed=1,
+            start_url="u", final_url="u", mode="video", extra={"query": "x"})
+        equal("the run still exits 0", rc, 0)
+        with open(prefix + ".csv", encoding="utf-8", newline="") as f:
+            got = list(csv.DictReader(f))
+        equal("a formula title is escaped", got[0]["title"],
+              '\'=HYPERLINK("http://x")')
+        equal("an @ cell is escaped", got[0]["author_nickname"], "'@a")
+        check("a joined list is escaped as the text it becomes",
+              got[0]["hashtags"].startswith("'-1+1"), got[0]["hashtags"])
+        equal("a negative NUMBER is left alone", got[0]["play_count"], "-5")
+        equal("ordinary text is untouched", got[1]["title"], "nasa")
+        data = json.load(open(prefix + ".json", encoding="utf-8"))
+        equal("JSON keeps the value exactly", data[0]["title"],
+              '=HYPERLINK("http://x")')
+        meta = json.load(open(prefix + ".meta.json", encoding="utf-8"))
+        equal("the sidecar counts the escaped cells",
+              meta.get("csv_cells_escaped"), 3)
+        equal("...and the caller's own extra still arrives",
+              meta.get("query"), "x")
+        output_writer.finish_run(
+            [plain], prefix, "both", False, blocked=False,
+            stop_reason="completed", pages_requested=1, pages_completed=1,
+            start_url="u", final_url="u", mode="video",
+            extra={"csv_cells_escaped": "mine"})
+        meta = json.load(open(prefix + ".meta.json", encoding="utf-8"))
+        equal("the caller's extra wins a name collision",
+              meta.get("csv_cells_escaped"), "mine")
+
+
+def check_negative_counts_and_delays_are_usage_errors():
+    """A negative `--retries` used to read as 0 and a negative delay
+    crashed at `time.sleep` mid-run (exit 1). Both are usage errors, and so
+    is a page count below 1. `--retries 0` stays legal: it counts EXTRA
+    attempts, so 0 is one attempt."""
+    import contextlib
+    modules = list(ENGINES) + ["scraper_api_client"]
+    for name in modules:
+        engine = _import_engine(name)
+        if engine is None:
+            skip(name, "engine library absent")
+            continue
+        api = name == "scraper_api_client"
+        cases = [("--retries", "-1"), ("--retry-delay", "-1")]
+        if api:
+            cases += [("--timeout", "0")]
+        else:
+            cases += [("--delay", "-1"), ("--proxy-block-retries", "-1"),
+                      ("--pages", "0")]
+        for flag, value in cases:
+            argv = ["--url", "nasa", flag, value]
+            err = io.StringIO()
+            saved = sys.argv
+            try:
+                with contextlib.redirect_stderr(err):
+                    if api:
+                        sys.argv = ["scraper_api_client.py"] + argv
+                        engine.parse_args()
+                    else:
+                        engine.parse_args(argv)
+                code = None
+            except SystemExit as exc:
+                code = exc.code
+            finally:
+                sys.argv = saved
+            equal("%s %s %s exits 2" % (name, flag, value), code, 2)
+            check("%s %s %s names the flag" % (name, flag, value),
+                  "argument %s" % flag in err.getvalue(), err.getvalue()[-200:])
+        if not api:
+            args = engine.parse_args(["--url", "nasa", "--retries", "0",
+                                      "--delay", "0"])
+            equal("%s --retries 0 is still accepted" % name, args.retries, 0)
+
+
+def check_no_citation_of_private_instructions_ships():
+    """Public files state their rules in their own words; they do not cite
+    an instruction file that is not part of this repository. The tokens are
+    assembled from pieces so this file does not match itself."""
+    section = chr(0xA7)
+    tokens = ("CLAUDE" + ".md", "claude" + "_2scraper", "2scraper" + "_repo_rules",
+              "play" + "book " + section, "template " + section)
+    section_ref = re.compile(section + r"\s?\d")
+    listed = subprocess.run(["git", "ls-files"], cwd=HERE,
+                            capture_output=True, text=True)
+    if listed.returncode != 0:
+        skip("citation scan", "not a git checkout")
+        return
+    hits = []
+    for rel in listed.stdout.splitlines():
+        path = os.path.join(HERE, rel)
+        if not os.path.isfile(path):
+            continue
+        try:
+            text = open(path, encoding="utf-8").read()
+        except (UnicodeDecodeError, OSError):
+            continue
+        for n, line in enumerate(text.splitlines(), 1):
+            if any(t.lower() in line.lower() for t in tokens) \
+                    or section_ref.search(line):
+                hits.append("%s:%d" % (rel, n))
+    check("no public file cites a private instruction file or its sections",
+          not hits, ", ".join(hits[:10]))
 
 
 CHECKS = [v for k, v in sorted(globals().items()) if k.startswith("check_")

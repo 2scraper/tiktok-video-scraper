@@ -27,7 +27,7 @@ generated. Zero video links reached the DOM in any variant.
 
 So this repo reads a WINDOW, not a back catalogue, and says so in the
 sidecar and in its closing log rather than letting "complete" imply
-"exhaustive" (CLAUDE.md §21).
+"exhaustive".
 
 Why the caption's entities are not read from the caption
 ========================================================
@@ -98,7 +98,7 @@ DEFAULT_MODE = "videos"
 # three files differ by their driver layer and nothing else.
 ENGINE_NAME = "playwright"
 
-# Every remote call is bounded (CLAUDE.md §8).
+# Every remote call is bounded.
 REQUEST_TIMEOUT_MS = 30_000
 NAVIGATION_TIMEOUT_MS = 60_000
 
@@ -114,7 +114,7 @@ PAGES_PER_WINDOW = 1
 class PageOutcome:
     """One fetch attempt's result, in request order rather than arrival order.
 
-    CLAUDE.md §8: merging by arrival order makes the output depend on which
+    Merging by arrival order makes the output depend on which
     worker finished first. Workers return these and the caller sorts.
     """
     number: int
@@ -131,7 +131,7 @@ class PageOutcome:
 def _mask_credentials(text: Any) -> str:
     """Mask every credential in a string, not just the first.
 
-    CLAUDE.md §8: a masker that handles the first occurrence prints the
+    A masker that handles the first occurrence prints the
     password the other four times and looks like it is working — Playwright
     repeats a CDP endpoint five times in one error, once in the message and
     four more in its call log.
@@ -147,7 +147,7 @@ def _mask_credentials(text: Any) -> str:
 def _chrome_ua(chromium_version: str) -> str:
     """A user agent built from the Chromium actually installed.
 
-    CLAUDE.md §8: a hardcoded version drifts from whatever is installed,
+    A hardcoded version drifts from whatever is installed,
     and claiming an older Chrome than the JS engine and TLS handshake
     report is itself a mismatch.
     """
@@ -159,7 +159,7 @@ def _chrome_ua(chromium_version: str) -> str:
 def _proxy_failure(exc: Exception) -> str:
     """Name a dead proxy, or "" for anything else.
 
-    CLAUDE.md §8: Chromium reports a dead proxy as a generic error, not a
+    Chromium reports a dead proxy as a generic error, not a
     timeout, and the two want opposite responses — a timeout deserves
     another try at the SAME exit, a dead proxy a DIFFERENT one. Catching
     only the timeout type let this escape as a traceback in a sibling repo.
@@ -176,7 +176,7 @@ def _proxy_failure(exc: Exception) -> str:
 class _BrowserSession:
     """A browser, a context on tiktok.com, and the request API bound to it.
 
-    A rotation is a FRESH BROWSER (CLAUDE.md §8): cookies a bot manager
+    A rotation is a FRESH BROWSER: cookies a bot manager
     issued against exit A and replayed from exit B are a stronger signal
     than either address alone. So this object is torn down and rebuilt
     rather than having its proxy swapped underneath it.
@@ -256,13 +256,13 @@ class _BrowserSession:
         tiktok-profile-scraper's route) DOES carry
         `'unsafe-eval'`, so a string-eval would work here today. The
         comment inherited with this core claimed the opposite about this
-        site, which is CLAUDE.md §16 exactly: a copied file's certainty is
+        site, which is the rule exactly: a copied file's certainty is
         about the repo it came from.
 
         It stays a function object anyway, for two reasons that do not
         depend on today's header. A CSP is a per-route header a site can
-        tighten without telling anyone, and CLAUDE.md §18 records a
-        sibling whose readiness wait died with `EvalError` on the site's
+        tighten without telling anyone, and a sibling was recorded
+        whose readiness wait died with `EvalError` on the site's
         most obvious URL when exactly that happened. And Selenium's
         `execute_script` takes a function BODY while Playwright and
         pyppeteer take `() => expr`, so an evaluated string is also the
@@ -318,7 +318,7 @@ def _launch_local(pw, args, pool: Optional[ProxyPool]) -> _BrowserSession:
     if proxy_conf:
         # Credentials go through Playwright's own fields, never onto the
         # command line: `--proxy-server=` becomes part of the browser's
-        # argv, readable by anything that can run `ps` (CLAUDE.md §8).
+        # argv, readable by anything that can run `ps`.
         launch_kwargs["proxy"] = proxy_conf
     browser = pw.chromium.launch(**launch_kwargs)
 
@@ -349,7 +349,7 @@ def _launch_local(pw, args, pool: Optional[ProxyPool]) -> _BrowserSession:
         _apply_fingerprint(context, page, fingerprint, user_agent)
     # The `client_version` slot is part of the shared session interface.
     # Neither route this repo reads takes such a parameter, so it stays
-    # empty rather than carrying a constant nothing reads (CLAUDE.md §17).
+    # empty rather than carrying a constant nothing reads.
     return _BrowserSession(browser, context, page, proxy_url,
                            "", user_agent)
 
@@ -369,8 +369,8 @@ def _apply_fingerprint(context, page, fingerprint, user_agent) -> None:
     `navigator.userAgentData` reporting the REAL browser. Measured
     2026-09-21 by reading both back out of a live page: the UA said
     `Chrome/150` while the brands said `HeadlessChrome/153`. That is a
-    contradiction rather than cover, and it is the half-identity CLAUDE.md
-    §24 measured being refused where a complete one was served.
+    contradiction rather than cover, and it is the half identity a sibling
+    measured being refused where a complete one was served.
 
     Applied TOGETHER with the user agent and never alone, for the same
     reason: a bare override is the thing that failed there.
@@ -391,7 +391,7 @@ def _apply_fingerprint(context, page, fingerprint, user_agent) -> None:
     if not metadata:
         logger.warning("The fingerprint carried no brand list, so its client "
                        "hints are left alone: a HALF identity is worse than "
-                       "none (CLAUDE.md §24).")
+                       "none.")
         return
     payload = {"userAgent": user_agent, "userAgentMetadata": metadata}
     language = accept_language(fingerprint)
@@ -409,7 +409,7 @@ def _apply_fingerprint(context, page, fingerprint, user_agent) -> None:
         # reported `HeadlessChrome/153` in the brands while one that kept
         # the session reported the fingerprint's `Google Chrome/150`. The
         # call succeeded either way, so this failed silently in exactly the
-        # way CLAUDE.md §16 describes — the tool doing less than it says
+        # way a recorded defect did — the tool doing less than it says
         # while reporting success. The session is parked on the page so it
         # lives as long as the browser does.
         page._2captcha_cdp_session = session
@@ -425,7 +425,7 @@ def _connect_remote(pw, args) -> _BrowserSession:
 
     Never sets a user agent, a fingerprint or a proxy on top: the remote
     browser brings its own, and stacking a second creates a contradiction
-    rather than better cover (CLAUDE.md §8). The engine refuses those
+    rather than better cover. The engine refuses those
     combinations in `parse_args` rather than quietly dropping them.
     """
     # The upgrade is RETRIED, because a rejection here is usually the
@@ -433,11 +433,11 @@ def _connect_remote(pw, args) -> _BrowserSession:
     # Scraping Browser endpoint: three raw WebSocket upgrades seconds
     # apart gave `HTTP 500` instantly on the first and connected on the
     # other two. Un-retried, that is exit 5 on roughly a third of runs for
-    # a condition that clears by itself — and CLAUDE.md §20 names it: a
+    # a condition that clears by itself — and it has a name: a
     # managed browser answering 500 on the upgrade is the SERVICE failing
     # to raise its own exit, not this code.
     #
-    # Deliberately NOT the same thing as a dead proxy (§8). There is no
+    # Deliberately NOT the same thing as a dead proxy. There is no
     # other exit to move to here, so the right response is to ask the same
     # endpoint again after a moment rather than to rotate.
     browser = None
@@ -482,7 +482,7 @@ def _open_http(args, pool: Optional[ProxyPool]) -> HttpSession:
     if args.fingerprint:
         # An HTTP client can carry the user agent and the language list but
         # not the client hints, the platform or the WebGL strings — so it
-        # can only ever wear HALF an identity, which CLAUDE.md §24 measures
+        # can only ever wear HALF an identity, which a sibling measured
         # as worse than none on a site that scores self-consistency.
         # Refused rather than half-applied.
         logger.warning("--fingerprint is ignored on the HTTP transport: an "
@@ -570,13 +570,13 @@ def _handle_captcha_in_browser(session, args,
     """Detect and, if it is worth paying for, solve a challenge.
 
     Both call sites — before classification and after — go through the same
-    `SolveBudget`, which is the CLAUDE.md §23 fix: `SOLVES_PER_PAGE` read
+    `SolveBudget`, which is the solve-budget fix: `SOLVES_PER_PAGE` read
     like an enforced limit in every repo in this family and was not one,
     because only the second of the two calls was counted. One page bought
     three solves on a site where a challenge rendered on every fetch.
 
-    A missing key or a solver error is a WARNING and the run continues
-    (CLAUDE.md §8): detection is not the same as blocking, and a run that
+    A missing key or a solver error is a WARNING and the run continues:
+    detection is not the same as blocking, and a run that
     already has data must not die because a solve failed.
     """
     if args.solve_captcha == "never":
@@ -645,7 +645,7 @@ def _handle_captcha_in_browser(session, args,
 def _dump(args, name: str, payload: Any) -> None:
     """Write the exact bytes a call returned.
 
-    On SUCCESS too, not only on failure (CLAUDE.md §9): a run can return
+    On SUCCESS too, not only on failure: a run can return
     the right count with a field silently unpopulated, and then the exact
     payload is the only way to tell a parsing bug from a too-early
     snapshot.
@@ -693,7 +693,7 @@ def _fetch_with_policy(session_box: Dict[str, Any], pw, args,
 
     `session_box` holds the live session so a rotation can replace it: a
     rotation is a fresh browser, never a proxy swapped under a live
-    session (CLAUDE.md §8).
+    session.
     """
     budget = SolveBudget()
     attempts = max(1, int(args.retries) + 1)
@@ -724,8 +724,7 @@ def _fetch_with_policy(session_box: Dict[str, Any], pw, args,
                 # responses: a timeout deserves another try at the SAME
                 # exit, a dead proxy a DIFFERENT one. Chromium reports it
                 # as a generic error rather than as a timeout, which is how
-                # this escaped as a traceback in a sibling repo
-                # (CLAUDE.md §8).
+                # this escaped as a traceback in a sibling repo.
                 logger.warning("%s failed at the EXIT, not at the site: %s "
                                "via %s. Rotating rather than retrying the "
                                "same address.", label, exit_failed,
@@ -818,9 +817,9 @@ def _rotate_if_per_page(session_box, pw, args, pool, why: str) -> bool:
     run whose pages all succeeded stayed on one address for its whole
     life. The flag read like a traffic-spreading control and was a
     recovery control — a setting that looks configurable and is not
-    (CLAUDE.md §3 says that about `.env`; it is the same defect here).
+    (the same defect as an `.env` value nothing reads).
 
-    A rotation is a FRESH BROWSER (CLAUDE.md §8): cookies a bot manager
+    A rotation is a FRESH BROWSER: cookies a bot manager
     issued against exit A and replayed from exit B are a stronger signal
     than either address alone, so the session is torn down and rebuilt
     rather than having its proxy swapped underneath it.
@@ -845,7 +844,7 @@ def _worker_pool(pool: Optional[ProxyPool], worker_index: int):
     Each worker gets its OWN pool object holding the same exits rotated to
     a different offset, so workers start on distinct addresses and no
     thread needs a lock — the concurrency is safe by construction rather
-    than by discipline (CLAUDE.md §7).
+    than by discipline.
     """
     if not pool:
         return None
@@ -1022,7 +1021,7 @@ def _run_videos(session_box, pw, args, pool) -> Tuple[List[Any], Dict[str, Any]]
         "window_sizes": windows or None,
         "enriched": bool(args.enrich),
         "enrich_failures": enrich_failures or None,
-        # CLAUDE.md §21: "complete" and "exhaustive" are different words,
+        # "Complete" and "exhaustive" are different words,
         # and on this route the gap is the whole story. The embed window is
         # ten to twelve videos however many the account has posted, and a
         # run that says only "complete" is lying by omission.
@@ -1154,7 +1153,7 @@ class _LazyDriver:
     """A Playwright driver for ONE thread, started there on first use.
 
     Playwright's sync API ties a driver to the thread that created it, and
-    CLAUDE.md §7 already says a worker owns its browser. The workers were
+    a worker owns its browser. The workers were
     nevertheless handed the one `pw` the main thread created, so every
     browser worker died with `greenlet.error: Cannot switch to a different
     thread` — reproduced 2026-09-29 on profile and video, exit 4 with no
@@ -1191,8 +1190,8 @@ def _fetch_videos_concurrently(pw, args, pool, targets, scraped_at, workers):
     """N workers, each owning its own browser and its own exit.
 
     Usable here and NOT in `--mode videos`: a video has its own address,
-    while an account's window is one page that then fans out. CLAUDE.md §7
-    — a worker owns one exit for its lifetime and starts at a different
+    while an account's window is one page that then fans out.
+    A worker owns one exit for its lifetime and starts at a different
     offset, so no thread needs a lock.
     """
     work: "queue.Queue[Tuple[int, Any]]" = queue.Queue()
@@ -1309,7 +1308,7 @@ def scrape(args) -> int:
     extra["category"] = args.category
     extra["transport"] = getattr(args, "transport", "auto")
 
-    # The sentence that keeps "complete" honest. CLAUDE.md §21: a run of an
+    # The sentence that keeps "complete" honest. A run of an
     # account's embed window IS complete — it fetched everything the route
     # will serve — and it is also ten to twelve videos out of however many
     # the account has posted. Saying only the first is lying by omission.
@@ -1381,7 +1380,7 @@ def parse_args(argv: Optional[List[str]] = None):
     p.add_argument("--no-enrich", dest="enrich", action="store_false",
                    help="Embed rows only — one request per account instead "
                         "of one per video. data_source says 'embed'.")
-    p.add_argument("--pages", type=int, default=1,
+    p.add_argument("--pages", type=page_flow.positive_int, default=1,
                    help="Kept for the family's flag contract and capped at 1. "
                         "The embed route serves one fixed window and ignores "
                         "?page= — measured: page 2 and page 3 return the same "
@@ -1398,11 +1397,13 @@ def parse_args(argv: Optional[List[str]] = None):
                         "creator-authored and is never translated.")
     p.add_argument("--format", choices=("json", "csv", "both"), default="json")
     p.add_argument("--out", default="tiktok_videos", help="Output file prefix.")
-    p.add_argument("--delay", type=float, default=0.0,
+    p.add_argument("--delay", type=page_flow.non_negative_float, default=0.0,
                    help="Seconds to wait between requests. Worth setting for "
                         "an enriched run, which is one request per video.")
-    p.add_argument("--retries", type=int, default=2)
-    p.add_argument("--retry-delay", type=float, default=2.0)
+    p.add_argument("--retries", type=page_flow.non_negative_int, default=2,
+                   help="Extra attempts after the first; 0 means one attempt.")
+    p.add_argument("--retry-delay", type=page_flow.non_negative_float,
+                   default=2.0)
     p.add_argument("--concurrency", type=int, default=1,
                    help="Workers. Usable in --mode video, where every video "
                         "has its own address. Refused above 1 in --mode "
@@ -1414,7 +1415,8 @@ def parse_args(argv: Optional[List[str]] = None):
     p.add_argument("--proxy-file", default=None)
     p.add_argument("--proxy-rotate", choices=ROTATE_MODES, default="per-run")
     p.add_argument("--proxy-shuffle", action="store_true")
-    p.add_argument("--proxy-block-retries", type=int, default=2)
+    p.add_argument("--proxy-block-retries", type=page_flow.non_negative_int,
+                   default=2)
     p.add_argument("--twocaptcha-key", default=None,
                    help="2Captcha API key. Also read from TWOCAPTCHA_KEY.")
     p.add_argument("--captcha-api", choices=("v1", "v2"), default="v2")

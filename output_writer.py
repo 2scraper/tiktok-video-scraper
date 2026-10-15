@@ -14,8 +14,8 @@ Both modes produce the same KIND of thing, so this repo carries one
 dataclass, `Video`. Its siblings — tiktok-profile-scraper,
 tiktok-shop-scraper and tiktok-ads-scraper — read different kinds and carry
 their own, and all of them keep the family prefix
-`source, scraped_at, url, sku, title` byte-identical and first
-(CLAUDE.md §9). `mode` is recorded in the run sidecar anyway, so a
+`source, scraped_at, url, sku, title` byte-identical and first.
+`mode` is recorded in the run sidecar anyway, so a
 consumer holding files from several repos can tell them apart without
 knowing which repo wrote which.
 
@@ -73,8 +73,8 @@ class Video:
     """One TikTok video.
 
     The family prefix — `source`, `scraped_at`, `url`, `sku`, `title` — is
-    byte-identical and in this order across every repo in the family
-    (CLAUDE.md §9). `sku` is the video id, which TikTok never reuses and
+    byte-identical and in this order across every repo in the family.
+    `sku` is the video id, which TikTok never reuses and
     never lets a creator change. `title` is the caption, because a TikTok
     video has no title of its own and the caption is what a CSV of ten
     thousand videos is read by; `description` carries the same text and is
@@ -134,7 +134,7 @@ class Video:
     #
     # Detected by the presence of TikTok's own `imagePost` key, which is a
     # structural signal rather than a threshold on the zeroed fields
-    # (CLAUDE.md §17: order signals by how much they prove).
+    # (order signals by how much they prove).
     content_type: Optional[str] = None
     image_count: Optional[int] = None
     image_urls: Optional[List[str]] = None
@@ -208,7 +208,7 @@ class Video:
     # `aigc_description` was here and is GONE. TikTok publishes
     # `AIGCDescription` on every item and it was EMPTY on all 29 posts
     # measured across three accounts on 2026-09-22, while `IsAigc` was
-    # populated on all 29. CLAUDE.md §9: a column null on every row of
+    # populated on all 29. A column null on every row of
     # every run should not exist, and removing it needs the measurement
     # written down so somebody can add it back with a better one — most
     # likely from an account that actually labels AI content.
@@ -229,8 +229,8 @@ class Video:
     position: Optional[int] = None
 
 
-# The family name. CLAUDE.md §9 makes `Product` the schema every repo in
-# this family exports, and several shared checks import it by that name.
+# The family name. `Product` is the row schema every repo in this family
+# exports, and several shared checks import it by that name.
 Product = Video
 
 
@@ -300,6 +300,32 @@ def _csv_value(v: Any) -> Any:
     return v
 
 
+# A spreadsheet treats a cell beginning with one of these as a FORMULA, not
+# as text, and captions, nicknames and image titles are written by the
+# creator rather than by this code. `=HYPERLINK(...)`, `+cmd|...` and
+# `@SUM(...)` are the classic shapes; a leading tab or newline is here
+# because some readers strip it and expose whatever follows.
+CSV_FORMULA_LEADS = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+# Prefixed to a cell that would otherwise be read as a formula. Excel, Google
+# Sheets and LibreOffice treat the apostrophe as "the rest is text" and do not
+# show it; a consumer parsing the CSV with `csv` does see it, which is why
+# the count goes into the sidecar as `csv_cells_escaped`.
+CSV_FORMULA_ESCAPE = "'"
+
+
+def _csv_escape(v: Any):
+    """Neutralise a formula-shaped cell. Returns (value, was_escaped).
+
+    Only STRINGS are touched: escaping a number would turn `-5` into the
+    text `'-5` and break every sum over the column. CSV only — the JSON
+    output keeps the site's values exactly as served.
+    """
+    if isinstance(v, str) and v.startswith(CSV_FORMULA_LEADS):
+        return CSV_FORMULA_ESCAPE + v, True
+    return v, False
+
+
 @contextlib.contextmanager
 def _atomic(path: str, newline: Optional[str] = None):
     """Write to a temporary file beside `path`, then rename over it.
@@ -331,6 +357,18 @@ def _atomic(path: str, newline: Optional[str] = None):
             yield handle
             handle.flush()
             os.fsync(handle.fileno())
+        # `NamedTemporaryFile` creates the file 0600 and a rename keeps the
+        # temp file's mode, so without this every output would be readable
+        # by its owner alone, whatever the umask says. An existing target
+        # keeps its own mode (someone may have set it on purpose); a new one
+        # gets what `open(path, "w")` would have given it.
+        try:
+            mode = os.stat(path).st_mode & 0o777
+        except OSError:
+            umask = os.umask(0)
+            os.umask(umask)
+            mode = 0o666 & ~umask
+        os.chmod(handle.name, mode)
         os.replace(handle.name, path)
     except BaseException:
         # Leave the destination untouched. A failed write must not be
@@ -347,7 +385,7 @@ def write_json(rows: Sequence[Any], path: str) -> None:
         json.dump([asdict(r) for r in rows], f, ensure_ascii=False, indent=2)
 
 
-def write_csv(rows: Sequence[Any], path: str, row_cls: Type = Video) -> None:
+def write_csv(rows: Sequence[Any], path: str, row_cls: Type = Video) -> int:
     # An empty result still gets the header row. A zero-byte file makes a
     # consumer fail on read (no columns to parse) instead of reading a valid
     # table with zero rows — and "an empty result is still a well-formed
@@ -355,12 +393,23 @@ def write_csv(rows: Sequence[Any], path: str, row_cls: Type = Video) -> None:
     #
     # The header comes from `row_cls`, not from the first row, so an empty
     # run still writes the columns of the mode that produced it.
+    #
+    # Returns how many cells were formula-escaped.
     fieldnames = [f.name for f in fields(row_cls)]
+    escaped = 0
     with _atomic(path, newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for r in rows:
-            writer.writerow({k: _csv_value(v) for k, v in asdict(r).items()})
+            row = {}
+            for k, v in asdict(r).items():
+                # Escape AFTER `_csv_value`: a list joined into one cell is
+                # text too, and its first element can be formula-shaped.
+                value, was_escaped = _csv_escape(_csv_value(v))
+                row[k] = value
+                escaped += was_escaped
+            writer.writerow(row)
+    return escaped
 
 
 # Exit code used when a run completes but produced nothing. Distinct from 1
@@ -374,8 +423,10 @@ EXIT_NO_PRODUCTS = 4
 #
 # On TikTok this code does NOT cover the states that look like it and are
 # not: a handle with no account, a video that is gone, a shop page with no
-# product on it. Each answers HTTP 200 with the site's own statement that
-# there is nothing there, and each is EXIT_NO_PRODUCTS. Reporting one as
+# product on it. Each answers with the site's own statement that there is
+# nothing there, and each is EXIT_NO_PRODUCTS. Usually under HTTP 200; the
+# embed route's missing account has been HTTP 400 since at least 2026-10-15,
+# with the same statement in its payload. Reporting one as
 # blocked sends a user hunting for a proxy problem that does not exist.
 #
 # What IS blocked here, measured 2026-09-22: TikTok's zero-length HTTP 200
@@ -500,7 +551,8 @@ def run_meta(status: str, stop_reason: str, pages_requested: int,
 
 
 def save(rows: Sequence[Any], out_prefix: str, fmt: str,
-         allow_empty: bool = False, row_cls: Type = Video) -> int:
+         allow_empty: bool = False, row_cls: Type = Video,
+         stats: Optional[dict] = None) -> int:
     """Write JSON/CSV and return a process exit code.
 
     Returns 0 when rows were written, EXIT_NO_PRODUCTS when there were none.
@@ -527,8 +579,17 @@ def save(rows: Sequence[Any], out_prefix: str, fmt: str,
         write_json(rows, f"{out_prefix}.json")
         print(f"[+] Saved {len(rows)} rows -> {out_prefix}.json")
     if fmt in ("csv", "both"):
-        write_csv(rows, f"{out_prefix}.csv", row_cls=row_cls)
+        escaped = write_csv(rows, f"{out_prefix}.csv", row_cls=row_cls)
         print(f"[+] Saved {len(rows)} rows -> {out_prefix}.csv")
+        # Through `stats` rather than the return value, because this
+        # function's return IS the exit code.
+        if stats is not None:
+            stats["csv_cells_escaped"] = escaped
+        if escaped:
+            print(f"[!] {escaped} CSV cell(s) began with a formula character "
+                  f"and were prefixed with {CSV_FORMULA_ESCAPE!r} so a "
+                  f"spreadsheet reads them as text. The JSON output is "
+                  f"unchanged — see csv_cells_escaped in the sidecar.")
     return 0 if rows else EXIT_NO_PRODUCTS
 
 
@@ -590,12 +651,18 @@ def finish_run(rows: Sequence[Any], out_prefix: str, fmt: str,
     # failed, the run is not complete, whatever it stopped for.
     complete = stop_reason in COMPLETE_STOP_REASONS and not pages_failed
     row_cls = ROW_CLASS_BY_MODE.get(mode, Video)
-    rc = save(rows, out_prefix, fmt, allow_empty=allow_empty, row_cls=row_cls)
+    write_stats: dict = {}
+    rc = save(rows, out_prefix, fmt, allow_empty=allow_empty, row_cls=row_cls,
+              stats=write_stats)
     wrote_output = bool(rows) or allow_empty
 
     if wrote_output:
         status = "complete" if (rows and complete) else (
             "partial" if rows else "failed")
+        # Merged UNDER the caller's `extra`: an engine's own facts win a
+        # name collision.
+        if write_stats:
+            extra = {**write_stats, **(extra or {})}
         write_run_meta(out_prefix, run_meta(
             status=status, stop_reason=stop_reason,
             pages_requested=pages_requested, pages_completed=pages_completed,

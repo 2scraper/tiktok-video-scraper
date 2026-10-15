@@ -15,7 +15,7 @@ WHAT THIS MODULE IS FOR ON TIKTOK
 On the profile, embed, video and Ad Library routes, from a bare datacentre
 address with no key and no proxy, TikTok rendered no captcha at all
 (measured 2026-09-22). But "no challenge rendered" is NOT "no captcha
-configured" (CLAUDE.md §18), and the obvious grep lies here the same way it
+configured", and the obvious grep lies here the same way it
 lies on other sites in this family: a SERVED profile page carries the word
 `captcha` 25 times. Every one is configuration for TikTok's own SDK, not a
 widget — which is why the bare word is not a challenge marker.

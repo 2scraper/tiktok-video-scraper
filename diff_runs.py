@@ -345,7 +345,7 @@ def _check_comparable(args) -> bool:
             print(f"[i] {label} ({path}) holds each account's embed window, "
                   f"not its back catalogue — a complete run, and a sample. A "
                   f"`removed` line may mean the window moved on rather than "
-                  f"that a video was deleted. CLAUDE.md §21: complete and "
+                  f"that a video was deleted. Complete and "
                   f"exhaustive are different words.")
 
     if not problems:
