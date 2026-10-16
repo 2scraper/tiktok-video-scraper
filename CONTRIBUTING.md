@@ -76,7 +76,7 @@ The second applies the credential rules CI enforces to **every blob that has
 ever existed**, not just the working tree. A commit on top cannot reach what a
 published tag already holds.
 
-The canary is **not** gated on a secret: both routes are served to a bare GitHub runner, so it runs a real enriched scrape daily and is expected GREEN.
+The canary is **not** gated on a secret: both routes are served to a bare GitHub runner, so it runs a real enriched scrape weekly (Mondays) and is expected GREEN.
 
 ## Pull requests
 

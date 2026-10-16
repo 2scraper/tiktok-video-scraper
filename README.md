@@ -290,16 +290,16 @@ is treated as unset. Variables: `TWOCAPTCHA_KEY`, `TIKTOK_CDP_ENDPOINT`,
 
 ---
 
-## The daily canary
+## The weekly canary
 
-`.github/workflows/canary.yml` runs a real scrape every morning **from a
+`.github/workflows/canary.yml` runs a real scrape every Monday **from a
 bare GitHub runner with no secrets**, and is expected green. That is the
-README's central claim under test daily: if TikTok puts the embed or video
-route behind a challenge, the badge goes red the next day. The same job
+README's central claim under test every week: if TikTok puts the embed or video
+route behind a challenge, the badge goes red on the next weekly run. The same job
 checks that a handle with no account exits 4.
 
-A second job runs the paid Scraper API path, weekly (Mondays) and on a
-manual dispatch because each run bills. It needs the `TWOCAPTCHA_KEY`
+A second job runs the paid Scraper API path on the same schedule and on a
+manual dispatch. It needs the `TWOCAPTCHA_KEY`
 repository secret and fails, naming that secret, when it is absent: a
 skipped check is not a passing one.
 

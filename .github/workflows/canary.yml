@@ -14,8 +14,8 @@
 # no key, no proxy and no account — measured 2026-09-22 from Hetzner
 # Helsinki, served to plain curl and to a browser alike. A GitHub runner is
 # a bare datacentre address in a different network. So this job runs a real
-# scrape every morning and is EXPECTED to be green; if TikTok ever puts
-# that route behind a challenge, it goes red the next day (exit 3 or 5, or
+# scrape every Monday and is EXPECTED to be green; if TikTok ever puts
+# that route behind a challenge, it goes red on the next weekly run (exit 3 or 5, or
 # too few rows, all fail it) and the claim is retested without anyone
 # having to remember to.
 #
@@ -27,9 +27,6 @@ name: canary
 
 on:
   schedule:
-    - cron: "31 6 * * *"
-    # Mondays only: the paid job (scraper-api) runs on this
-    # schedule (each run bills); the free jobs keep the daily one above.
     - cron: "31 6 * * 1"
   workflow_dispatch:
 
@@ -180,8 +177,6 @@ jobs:
 
   scraper-api:
     name: the paid path (fails without TWOCAPTCHA_KEY)
-    # Paid path: weekly schedule or a manual dispatch only.
-    if: github.event_name != 'schedule' || github.event.schedule == '31 6 * * 1'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
